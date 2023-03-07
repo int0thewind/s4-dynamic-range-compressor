@@ -5,6 +5,7 @@ from torch import Tensor
 
 class Rearrange(nn.Module):
     def __init__(self, r: str, **kwargs: int) -> None:
+        # TODO: should I save arguments as
         super().__init__()
         self.r = r
         self.kwargs = kwargs

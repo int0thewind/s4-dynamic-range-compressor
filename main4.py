@@ -10,7 +10,7 @@ from torch import Tensor
 from torch.optim import AdamW
 from tqdm.auto import tqdm
 
-from src.model import DSSM, Rearrange
+from src.layer import DSSM, Rearrange
 from src.utils import current_utc_time, get_tensor_device
 
 PROJ_NAME = 'Compressor Conditioning'

@@ -1,0 +1,31 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+torch = "~=1.13"
+torchaudio = "~=0.13"
+einops = "~=0.6"
+ipython = "*"
+notebook = "*"
+tqdm = "*"
+rootconfig = "*"
+numpy = "*"
+scipy = "*"
+opt-einsum = "*"
+pandas = "*"
+auraloss = "*"
+wandb = "*"
+jupyter = "*"
+ipywidgets = "*"
+torchvision = "*"
+pyloudnorm = "*"
+torchinfo = "*"
+
+[dev-packages]
+autopep8 = "*"
+pycodestyle = "*"
+
+[requires]
+python_version = "3.10"

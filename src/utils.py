@@ -1,11 +1,21 @@
+"""The utility package.
+
+This package exposes utility functions to set random seed, clean memeory, and so on. 
+"""
+
 import gc
+import random
 from datetime import datetime, timezone
 
-import matplotlib.pyplot as plt
 import numpy as np
-import numpy.typing as npt
 import torch
-from scipy import signal
+
+
+def set_random_seed_to(seed: int = 0):
+    """Manually set random seeds in Python standard library, NumPy, and PyTorch."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.random.manual_seed(seed)
 
 
 def clear_memory():
@@ -42,19 +52,3 @@ def current_utc_time() -> str:
     return '-'.join(list(map(str, [
         dtn.year, dtn.month, dtn.day, dtn.hour, dtn.minute, dtn.second
     ])))
-
-
-def plot_freqz(b: npt.NDArray[np.float64], a: npt.NDArray[np.float64]):
-    w, h = signal.freqz(b, a)
-
-    fig, ax1 = plt.subplots()
-    ax1.set_title('Frequency and Phase Response')
-    ax1.plot(w, 20 * np.log10(np.abs(h)), color='blue')
-    ax1.set_xlabel('Frequency (rad)')
-    ax1.set_ylabel('Amplitude (dB)', color='blue')
-    ax2 = ax1.twinx()
-    ax2.plot(w, np.unwrap(np.angle(h)), color='green')
-    ax2.set_ylabel('Phase', color='green')
-    ax2.grid(True)
-
-    return fig, (ax1, ax2)

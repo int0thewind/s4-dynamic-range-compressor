@@ -10,7 +10,7 @@ from torch import Tensor
 from torch.optim import AdamW
 from torch.utils.data import DataLoader, random_split
 from torchinfo import summary
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 from src.constant import *
 from src.dataset import (PeakReductionValueType, SignalTrainSingleFileDataset,
@@ -20,13 +20,12 @@ from src.model import ActivationType, DRCModel
 from src.utils import (clear_memory, current_utc_time, get_tensor_device,
                        set_random_seed_to)
 
-download_signal_train_dataset_to(Path('./data/SignalTrain'))
-
 
 @dataclass
 class Parameter(RootConfig):
     random_seed: int = 42
 
+    dataset_dir: Path = Path('./data/SignalTrain')
     input_file_path: Path = Path('./data/SignalTrain/Train/input_138_.wav')
     output_file_path: Path = Path(
         './data/SignalTrain/Train/target_138_LA2A_3c__0__0.wav'
@@ -64,13 +63,14 @@ class Parameter(RootConfig):
 param = Parameter.parse_args()
 
 '''The preparatory work.'''
+download_signal_train_dataset_to(param.dataset_dir)
 set_random_seed_to(param.random_seed)
 device = get_tensor_device()
 job_name = current_utc_time()
 job_dir = (param.checkpoint_dir / job_name)
 
 if param.save_checkpoint:
-    job_dir.mkdir(611, True, True)
+    job_dir.mkdir(511, True, True)
     param.to_json(job_dir / 'config.json')
 
 '''Prepare the dataset.'''
@@ -84,11 +84,11 @@ dataset = SignalTrainSingleFileDataset(
 training_dataset, validation_dataset = random_split(dataset, [0.85, 0.15])
 training_dataloader = DataLoader(
     training_dataset, param.batch_size,
-    shuffle=True, num_workers=8, collate_fn=dataset.collate_fn
+    shuffle=True, collate_fn=dataset.collate_fn
 )
 validation_dataloader = DataLoader(
     validation_dataset, param.batch_size,
-    shuffle=True, num_workers=8, collate_fn=dataset.collate_fn
+    shuffle=True, collate_fn=dataset.collate_fn
 )
 
 '''Prepare the model.'''
@@ -141,14 +141,14 @@ if param.log_wandb:
 for epoch in range(param.epoch):
     clear_memory()
 
+    batch_training_loss = 0.0
+    model.train()
+    criterion.train()
     training_bar = tqdm(
         training_dataloader,
         desc=f'Training. {epoch = }',
         total=len(training_dataloader),
     )
-    batch_training_loss = 0.0
-    model.train()
-    criterion.train()
 
     for x, y in training_bar:
         x: Tensor = x.to(device)
@@ -168,14 +168,14 @@ for epoch in range(param.epoch):
         })
         batch_training_loss += loss.item() / len(training_dataloader)
 
+    batch_validation_loss: defaultdict[LossType, float] = defaultdict(float)
+    model.eval()
+    criterion.eval()
     validation_bar = tqdm(
         validation_dataloader,
         desc=f'Validating. {epoch = }',
         total=len(validation_dataloader),
     )
-    batch_validation_loss: defaultdict[LossType, float] = defaultdict(float)
-    model.eval()
-    criterion.eval()
 
     with torch.no_grad():
         for x, y in validation_bar:

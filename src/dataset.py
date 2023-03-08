@@ -67,7 +67,7 @@ class SignalTrainSingleFileDataset(Dataset):
             raise ValueError(
                 'The input audio and the output audio does not have the same length.'
             )
-        if idat.dim(0) != 1:
+        if idat.size(0) != 1:
             raise ValueError('The input audio is not mono.')
         if sr != sr_out:
             raise ValueError(
@@ -76,9 +76,13 @@ class SignalTrainSingleFileDataset(Dataset):
 
         segment_size = int(segment_length * sr)
         size, trill = divmod(idat.size(1), segment_size)
-        idat = rearrange(idat.squeeze(0)[:-trill], '(S L) -> S L', S=size)
-        odat = rearrange(odat.squeeze(0)[:-trill], '(S L) -> S L', S=size)
-        assert idat.size() == odat.size() == (size, segment_size)
+        if trill != 0:
+            idat = idat[:, :-trill]
+            odat = odat[:, :-trill]
+        idat = rearrange(idat.squeeze(0), '(S L) -> S L', S=size)
+        odat = rearrange(odat.squeeze(0), '(S L) -> S L', S=size)
+        assert idat.size() == odat.size() == (
+            size, segment_size), f'{idat.size() = }, {odat.size() = }'
 
         self.input_data = idat
         self.output_data = odat

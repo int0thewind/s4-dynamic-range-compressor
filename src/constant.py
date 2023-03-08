@@ -1,6 +1,5 @@
 from pathlib import Path
 
-DEFAULT_DATA_PATH = Path('./data')
 DEFAULT_CHECKPOINT_PATH = Path('./experiment-result')
 
 DEFAULT_WANDB_ENTITY = 'int0thewind'

@@ -14,11 +14,13 @@ from tqdm.auto import tqdm
 
 from src.constant import *
 from src.dataset import (PeakReductionValueType, SignalTrainSingleFileDataset,
-                         SwitchValueType)
+                         SwitchValueType, download_signal_train_dataset_to)
 from src.loss import FilterType, LossType, forge_loss_function_from
 from src.model import ActivationType, DRCModel
 from src.utils import (clear_memory, current_utc_time, get_tensor_device,
                        set_random_seed_to)
+
+download_signal_train_dataset_to(Path('./data/SignalTrain'))
 
 
 @dataclass

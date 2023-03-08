@@ -66,6 +66,7 @@ param = Parameter.parse_args()
 download_signal_train_dataset_to(param.dataset_dir)
 set_random_seed_to(param.random_seed)
 device = get_tensor_device()
+print(f'Device {device} detected.')
 job_name = current_utc_time()
 job_dir = (param.checkpoint_dir / job_name)
 

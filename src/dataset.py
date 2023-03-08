@@ -31,6 +31,8 @@ def download_signal_train_dataset_to(root: os.PathLike):
         print('The SignalTrain dataset has been downloaded. Skipping ... ')
         return
 
+    root.mkdir(511, True, True)
+
     _d = root / 'temp.tgz'
     download_url_to_file(SIGNAL_TRAIN_DATASET_DOWNLOAD_LINK, _d)
     with tarfile.open(_d, 'r') as tf:

@@ -8,7 +8,9 @@ from torch import Tensor
 
 from .layer import DSSM, Absolute, Amplitude, Decibel, Rearrange
 
-ActivationType = Literal['tanh', 'sigmoid', 'gelu']
+__all__ = ['ActivationType', 'DRCModel']
+
+ActivationType = Literal['tanh', 'sigmoid', 'GELU']
 
 
 class DRCModel(nn.Module):
@@ -18,7 +20,7 @@ class DRCModel(nn.Module):
         self, num_channel: int, s4_hidden_size: int,
         s4_learning_rate: float | None,
         model_depth: int, activation: ActivationType,
-        db: bool, abs: bool, amp: bool,
+        take_db: bool, take_abs: bool, take_amp: bool,
     ):
         if num_channel < 1:
             raise ValueError()
@@ -41,9 +43,9 @@ class DRCModel(nn.Module):
 
         layers: list[nn.Module] = []
 
-        if abs:
+        if take_abs:
             layers.append(Absolute())
-        if db:
+        if take_db:
             layers.append(Decibel())
 
         layers.extend([
@@ -70,7 +72,7 @@ class DRCModel(nn.Module):
             Rearrange('B L 1 -> B L')
         ])
 
-        if amp:
+        if take_amp:
             layers.append(Amplitude())
 
         self.side_chain = nn.Sequential(*layers)

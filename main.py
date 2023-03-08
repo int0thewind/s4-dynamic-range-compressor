@@ -34,7 +34,7 @@ class Parameter(RootConfig):
     peak_reduction_value: PeakReductionValueType = 0
     data_segment_length: float = 1.0
 
-    epoch: int = 50
+    epoch: int = 25
     learning_rate: float = 1e-3
     s4_learning_rate: float = 1e-3
     batch_size: int = 64
@@ -65,7 +65,7 @@ param = Parameter.parse_args()
 '''The preparatory work.'''
 download_signal_train_dataset_to(param.dataset_dir)
 set_random_seed_to(param.random_seed)
-device = get_tensor_device()
+device = get_tensor_device(apple_silicon=False)
 job_name = current_utc_time()
 job_dir = (param.checkpoint_dir / job_name)
 

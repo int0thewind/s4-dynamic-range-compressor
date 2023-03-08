@@ -65,12 +65,8 @@ param = Parameter.parse_args()
 '''The preparatory work.'''
 download_signal_train_dataset_to(param.dataset_dir)
 set_random_seed_to(param.random_seed)
-<<<<<<< HEAD
-device = get_tensor_device()
-print(f'Device {device} detected.')
-=======
 device = get_tensor_device(apple_silicon=False)
->>>>>>> 3330b2c617223286751488d762cbd48124614a50
+print(f'Device {device} detected.')
 job_name = current_utc_time()
 job_dir = (param.checkpoint_dir / job_name)
 

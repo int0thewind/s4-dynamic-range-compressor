@@ -73,6 +73,15 @@ if param.save_checkpoint:
     job_dir.mkdir(511, True, True)
     param.to_json(job_dir / 'config.json')
 
+'''Weight and Bias'''
+if param.log_wandb:
+    wandb.init(
+        name=job_name,
+        project=param.wandb_project_name,
+        entity=param.wandb_entity,
+        config=param.to_dict(),
+    )
+
 '''Prepare the dataset.'''
 dataset = ParameterDataset(
     param.dataset_dir,
@@ -120,16 +129,6 @@ validation_criterions: dict[LossType, nn.Module] = {
 
 '''Prepare the optimizer'''
 optimizer = AdamW(model.parameters(), lr=param.learning_rate)
-
-'''Weight and Bias'''
-# TODO: finish logging.
-if param.log_wandb:
-    wandb.init(
-        name=job_name,
-        project=param.wandb_project_name,
-        entity=param.wandb_entity,
-        config=param.to_dict(),
-    )
 
 '''Training loop'''
 for epoch in range(param.epoch):

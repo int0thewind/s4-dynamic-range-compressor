@@ -1,6 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
+from pprint import pprint
 from typing import get_args
 
 import torch
@@ -58,6 +59,7 @@ class Parameter(RootConfig):
 
 '''Script parameters.'''
 param = Parameter.parse_args()
+pprint(param.to_dict())
 
 '''The preparatory work.'''
 download_signal_train_dataset_to(param.dataset_dir)
@@ -123,7 +125,10 @@ optimizer = AdamW(model.parameters(), lr=param.learning_rate)
 # TODO: finish logging.
 if param.log_wandb:
     wandb.init(
-        config=param.to_dict()
+        name=job_name,
+        project=param.wandb_project_name,
+        entity=param.wandb_entity,
+        config=param.to_dict(),
     )
 
 '''Training loop'''

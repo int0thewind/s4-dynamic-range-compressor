@@ -29,10 +29,10 @@ class Parameter(RootConfig):
 
     dataset_dir: Path = Path('./data/SignalTrain')
     switch_value: SwitchValueType = 0
-    peak_reduction_value: PeakReductionValueType = 50
+    peak_reduction_value: PeakReductionValueType = 75
     data_segment_length: float = 1.0
 
-    epoch: int = 25
+    epoch: int = 50
     learning_rate: float = 1e-3
     s4_learning_rate: float = 1e-3
     batch_size: int = 64
@@ -162,7 +162,7 @@ for epoch in range(param.epoch):
         })
         batch_training_loss += loss.item() / len(training_dataloader)
 
-    batch_validation_loss: defaultdict[LossType, float] = defaultdict(float)
+    batch_validation_loss: defaultdict[str, float] = defaultdict(float)
     model.eval()
     criterion.eval()
     validation_bar = tqdm(
@@ -180,15 +180,15 @@ for epoch in range(param.epoch):
 
             y_hat: Tensor = model(x)
 
-            for loss_type, evaluation_criterion in validation_criterions.items():
-                this_loss: Tensor = evaluation_criterion(y_hat, y)
-                batch_validation_loss[loss_type] += (
+            for validation_loss, validation_criterion in validation_criterions.items():
+                this_loss: Tensor = validation_criterion(y_hat, y)
+                batch_validation_loss[f'Validation Loss: {validation_loss}'] += (
                     this_loss.item() / len(validation_dataloader)
                 )
 
     if param.log_wandb:
         wandb.log({
-            'Training Loss': batch_training_loss,
+            f'Training Loss: {param.loss}': batch_training_loss,
         } | batch_validation_loss)
     if param.save_checkpoint:
         torch.save(model.state_dict(), job_dir / f'model-epoch-{epoch}.pth')

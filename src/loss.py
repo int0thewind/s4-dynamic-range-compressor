@@ -1,6 +1,5 @@
 from typing import Literal, get_args
 
-import torch
 import torch.nn as nn
 from auraloss.freq import MultiResolutionSTFTLoss
 from auraloss.perceptual import FIRFilter
@@ -27,9 +26,11 @@ class EsrDcLoss(nn.Module):
 
     def forward(self, y_hat: Tensor, y: Tensor) -> Tensor:
         if self.preemphasis_filter:
-            return self.esr(*self.preemphasis_filter(y_hat, y)) + self.dc(y_hat, y)
+            esr_loss = self.esr(*self.preemphasis_filter(y_hat, y))
+        else:
+            esr_loss = self.esr(y_hat, y)
 
-        return self.esr(y_hat, y) + self.dc(y_hat, y)
+        return esr_loss + self.dc(y_hat, y)
 
 
 class EsrDcStftLoss(nn.Module):
@@ -46,9 +47,11 @@ class EsrDcStftLoss(nn.Module):
 
     def forward(self, y_hat: Tensor, y: Tensor) -> Tensor:
         if self.preemphasis_filter:
-            return self.esr(*self.preemphasis_filter(y_hat, y)) + self.dc(y_hat, y) + self.stft(y_hat, y)
+            esr_loss = self.esr(*self.preemphasis_filter(y_hat, y))
+        else:
+            esr_loss = self.esr(y_hat, y)
 
-        return self.esr(y_hat, y) + self.dc(y_hat, y) + self.stft(y_hat, y)
+        return esr_loss + self.dc(y_hat, y) + self.stft(y_hat, y)
 
 
 def forge_loss_function_from(

@@ -1,6 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
+from typing import get_args
 
 import torch
 import torch.nn as nn
@@ -13,7 +14,7 @@ from torchinfo import summary
 from tqdm import tqdm
 
 from src.constant import *
-from src.dataset import (PeakReductionValueType, SignalTrainSingleFileDataset,
+from src.dataset import (ParameterDataset, PeakReductionValueType,
                          SwitchValueType, download_signal_train_dataset_to)
 from src.loss import FilterType, LossType, forge_loss_function_from
 from src.model import ActivationType, DRCModel
@@ -26,10 +27,6 @@ class Parameter(RootConfig):
     random_seed: int = 42
 
     dataset_dir: Path = Path('./data/SignalTrain')
-    input_file_path: Path = Path('./data/SignalTrain/Train/input_138_.wav')
-    output_file_path: Path = Path(
-        './data/SignalTrain/Train/target_138_LA2A_3c__0__0.wav'
-    )
     switch_value: SwitchValueType = 0
     peak_reduction_value: PeakReductionValueType = 0
     data_segment_length: float = 1.0
@@ -75,9 +72,8 @@ if param.save_checkpoint:
     param.to_json(job_dir / 'config.json')
 
 '''Prepare the dataset.'''
-dataset = SignalTrainSingleFileDataset(
-    param.input_file_path,
-    param.output_file_path,
+dataset = ParameterDataset(
+    param.dataset_dir,
     param.data_segment_length,
     param.switch_value,
     param.peak_reduction_value,
@@ -113,19 +109,11 @@ if param.save_checkpoint:
 criterion = forge_loss_function_from(
     param.loss, param.loss_filter_type, param.loss_filter_coef
 ).to(device)
-evaluation_criterions: dict[LossType, nn.Module] = {
-    'MSE': forge_loss_function_from(
-        'MSE', param.loss_filter_type, param.loss_filter_coef
-    ).eval().to(device),
-    'ESR+DC': forge_loss_function_from(
-        'ESR+DC', param.loss_filter_type, param.loss_filter_coef
-    ).eval().to(device),
-    'Multi-STFT': forge_loss_function_from(
-        'Multi-STFT', param.loss_filter_type, param.loss_filter_coef
-    ).eval().to(device),
-    'ESR+DC+Multi-STFT': forge_loss_function_from(
-        'ESR+DC+Multi-STFT', param.loss_filter_type, param.loss_filter_coef
-    ).eval().to(device)
+
+validation_criterions: dict[LossType, nn.Module] = {
+    loss_type: forge_loss_function_from(
+        loss_type, param.loss_filter_type, param.loss_filter_coef
+    ).eval().to(device) for loss_type in get_args(LossType)
 }
 
 '''Prepare the optimizer'''
@@ -152,13 +140,14 @@ for epoch in range(param.epoch):
     )
 
     for x, y in training_bar:
-        x: Tensor = x.to(device)
-        y: Tensor = y.to(device)
+        x: Tensor
+        y: Tensor
+        x = x.to(device)
+        y = y.to(device)
 
         optimizer.zero_grad()
 
         y_hat: Tensor = model(x)
-
         loss: Tensor = criterion(y_hat, y)
 
         loss.backward()
@@ -180,12 +169,14 @@ for epoch in range(param.epoch):
 
     with torch.no_grad():
         for x, y in validation_bar:
-            x: Tensor = x.to(device)
-            y: Tensor = y.to(device)
+            x: Tensor
+            y: Tensor
+            x = x.to(device)
+            y = y.to(device)
 
             y_hat: Tensor = model(x)
 
-            for loss_type, evaluation_criterion in evaluation_criterions.items():
+            for loss_type, evaluation_criterion in validation_criterions.items():
                 this_loss: Tensor = evaluation_criterion(y_hat, y)
                 batch_validation_loss[loss_type] += (
                     this_loss.item() / len(validation_dataloader)

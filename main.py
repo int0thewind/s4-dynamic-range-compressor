@@ -6,7 +6,6 @@ from typing import get_args
 
 import torch
 import torch.nn as nn
-import wandb
 from rootconfig import RootConfig
 from torch import Tensor
 from torch.optim import AdamW
@@ -14,6 +13,7 @@ from torch.utils.data import DataLoader, random_split
 from torchinfo import summary
 from tqdm import tqdm
 
+import wandb
 from src.constant import *
 from src.dataset import (ParameterDataset, PeakReductionValueType,
                          SwitchValueType, download_signal_train_dataset_to)
@@ -29,7 +29,7 @@ class Parameter(RootConfig):
 
     dataset_dir: Path = Path('./data/SignalTrain')
     switch_value: SwitchValueType = 0
-    peak_reduction_value: PeakReductionValueType = 0
+    peak_reduction_value: PeakReductionValueType = 50
     data_segment_length: float = 1.0
 
     epoch: int = 25
@@ -45,9 +45,9 @@ class Parameter(RootConfig):
     model_take_db: bool = True
     model_take_amp: bool = True
 
-    loss: LossType = 'MSE'
+    loss: LossType = 'Multi-STFT'
     loss_filter_type: FilterType = 'hp'
-    loss_filter_coef: float = 0.85
+    loss_filter_coef: float = -0.85
 
     log_wandb: bool = True
     wandb_entity: str = DEFAULT_WANDB_ENTITY

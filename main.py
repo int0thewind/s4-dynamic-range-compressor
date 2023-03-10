@@ -6,6 +6,7 @@ from typing import get_args
 
 import torch
 import torch.nn as nn
+import wandb
 from rootconfig import RootConfig
 from torch import Tensor
 from torch.optim import AdamW
@@ -13,7 +14,6 @@ from torch.utils.data import DataLoader, random_split
 from torchinfo import summary
 from tqdm import tqdm
 
-import wandb
 from src.constant import *
 from src.dataset import (ParameterDataset, PeakReductionValueType,
                          SwitchValueType, download_signal_train_dataset_to)

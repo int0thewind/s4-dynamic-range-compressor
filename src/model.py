@@ -21,6 +21,7 @@ class DRCModel(nn.Module):
         s4_learning_rate: float | None,
         model_depth: int, activation: ActivationType,
         take_db: bool, take_abs: bool, take_amp: bool,
+        take_s4: bool = True,
     ):
         if num_channel < 1:
             raise ValueError()
@@ -56,20 +57,26 @@ class DRCModel(nn.Module):
             Rearrange('B L  -> B L 1'),
             nn.Linear(1, num_channel),
             Act(),
-            Rearrange('B L H -> B H L'),
-            DSSM(num_channel, s4_hidden_size, lr=s4_learning_rate),
-            Rearrange('B H L -> B L H'),
-            Act(),
         ])
-        for _ in range(model_depth):
+        if take_s4:
             layers.extend([
-                nn.Linear(num_channel, num_channel),
-                Act(),
                 Rearrange('B L H -> B H L'),
                 DSSM(num_channel, s4_hidden_size, lr=s4_learning_rate),
                 Rearrange('B H L -> B L H'),
                 Act(),
             ])
+        for _ in range(model_depth):
+            layers.extend([
+                nn.Linear(num_channel, num_channel),
+                Act(),
+            ])
+            if take_s4:
+                layers.extend([
+                    Rearrange('B L H -> B H L'),
+                    DSSM(num_channel, s4_hidden_size, lr=s4_learning_rate),
+                    Rearrange('B H L -> B L H'),
+                    Act(),
+                ])
 
         layers.extend([
             nn.Linear(num_channel, 1),

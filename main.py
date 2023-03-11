@@ -22,6 +22,9 @@ from src.model import ActivationType, DRCModel
 from src.utils import (clear_memory, current_utc_time, get_tensor_device,
                        set_random_seed_to)
 
+if __name__ != '__main__':
+    raise RuntimeError(f'The main script cannot be imported by other module.')
+
 
 @dataclass
 class Parameter(RootConfig):
@@ -55,6 +58,8 @@ class Parameter(RootConfig):
 
     save_checkpoint: bool = True
     checkpoint_dir: Path = DEFAULT_CHECKPOINT_PATH
+
+    keep_s4: bool = False
 
 
 '''Script parameters.'''
@@ -109,6 +114,7 @@ model = DRCModel(
     param.model_take_db,
     param.model_take_abs,
     param.model_take_amp,
+    param.keep_s4
 ).to(device)
 
 model_statistics = summary(model, (param.batch_size, dataset.segment_size))

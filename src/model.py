@@ -10,7 +10,7 @@ from .layer import DSSM, Absolute, Amplitude, Decibel, Rearrange
 
 __all__ = ['ActivationType', 'DRCModel']
 
-ActivationType = Literal['tanh', 'sigmoid', 'GELU']
+ActivationType = Literal['tanh', 'sigmoid', 'GELU', 'ReLU', 'Identity']
 
 
 class DRCModel(nn.Module):
@@ -38,8 +38,12 @@ class DRCModel(nn.Module):
             Act = nn.Tanh
         elif activation == 'sigmoid':
             Act = nn.Sigmoid
-        else:
+        elif activation == 'ReLU':
+            Act = nn.ReLU
+        elif activation == 'GELU':
             Act = nn.GELU
+        else:
+            Act = nn.Identity
 
         layers: list[nn.Module] = []
 

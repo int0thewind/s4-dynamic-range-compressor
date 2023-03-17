@@ -1,6 +1,6 @@
 """Definitions of actual training module.
 """
-
+from abc import ABC, abstractmethod
 from typing import Literal, get_args
 
 import torch.nn as nn
@@ -8,18 +8,40 @@ from torch import Tensor
 
 from .layer import DSSM, Absolute, Amplitude, Decibel, Rearrange
 
-__all__ = ['ActivationType', 'DRCModel']
+__all__ = ['Activation', 'S4LinearModel']
 
-ActivationType = Literal['tanh', 'sigmoid', 'GELU', 'ReLU', 'Identity']
+Activation = Literal['tanh', 'sigmoid', 'GELU', 'ReLU', 'Identity']
 
 
-class DRCModel(nn.Module):
-    side_chain: nn.Sequential
+class DRCModel(ABC, nn.Module):
+    @property
+    @abstractmethod
+    def side_chain(self) -> nn.Module:
+        pass
+
+    def forward(self, x: Tensor) -> Tensor:
+        return x * self.side_chain(x)
+
+
+# class ElmanModel(DRCModel):
+#     # TODO: finish Elman Network Model
+#     def side_chain(self) -> nn.Module:
+#         return self._side_chain
+
+#     def __init__(self, ) -> None:
+#         super().__init__()
+
+
+class S4LinearModel(DRCModel):
+    _side_chain: nn.Sequential
+
+    def side_chain(self) -> nn.Module:
+        return self._side_chain
 
     def __init__(
         self, num_channel: int, s4_hidden_size: int,
         s4_learning_rate: float | None,
-        model_depth: int, activation: ActivationType,
+        model_depth: int, activation: Activation,
         take_db: bool, take_abs: bool, take_amp: bool,
         take_s4: bool = True,
     ):
@@ -29,12 +51,13 @@ class DRCModel(nn.Module):
             raise ValueError()
         if model_depth < 0:
             raise ValueError()
-        if not activation in get_args(ActivationType):
+        if not activation in get_args(Activation):
             raise ValueError(
                 f'Unsupported non-linear activation `{activation}`.'
             )
 
         super().__init__()
+
         if activation == 'tanh':
             Act = nn.Tanh
         elif activation == 'sigmoid':
@@ -86,7 +109,4 @@ class DRCModel(nn.Module):
         if take_amp:
             layers.append(Amplitude())
 
-        self.side_chain = nn.Sequential(*layers)
-
-    def forward(self, x: Tensor):
-        return x * self.side_chain(x)
+        self._side_chain = nn.Sequential(*layers)

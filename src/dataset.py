@@ -11,18 +11,19 @@ from torch import Tensor
 from torch.hub import download_url_to_file
 from torch.utils.data import Dataset
 
-__all__ = ['SwitchValueType', 'PeakReductionValueType',
+__all__ = ['SwitchValue', 'PeakReductionValue',
            'download_signal_train_dataset_to', 'ParameterDataset']
 
-SwitchValueType = Literal[0, 1]
-PeakReductionValueType = Literal[
+SwitchValue = Literal[0, 1]
+PeakReductionValue = Literal[
     0, 5, 10, 15, 20, 25, 30,
     35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100
 ]
+Partition = Literal['Train', 'Test', 'Val']
 
 param_dict: dict[
-    tuple[SwitchValueType, PeakReductionValueType],
-    list[tuple[str, str, str]]
+    tuple[SwitchValue, PeakReductionValue],
+    list[tuple[Partition, str, str]]
 ] = {
     (0, 0): [('Train',
               'input_138_.wav',
@@ -305,15 +306,15 @@ def download_signal_train_dataset_to(root: os.PathLike):
 class ParameterDataset(Dataset):
     sample_rate = 44100
 
-    switch: SwitchValueType
-    peak_reduction: PeakReductionValueType
+    switch: SwitchValue
+    peak_reduction: PeakReductionValue
     input_data: Tensor
     output_data: Tensor
     segment_size: int
 
     def __init__(
         self, dataset_root: os.PathLike, segment_length: float,
-        switch: SwitchValueType, peak_reduction: PeakReductionValueType,
+        switch: SwitchValue, peak_reduction: PeakReductionValue,
     ):
         if not (0.0 < segment_length <= 10.0):
             raise ValueError(

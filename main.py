@@ -6,7 +6,6 @@ from typing import get_args
 
 import torch
 import torch.nn as nn
-import wandb
 from rootconfig import RootConfig
 from torch import Tensor
 from torch.optim import AdamW
@@ -14,11 +13,12 @@ from torch.utils.data import DataLoader, random_split
 from torchinfo import summary
 from tqdm import tqdm
 
+import wandb
 from src.constant import *
-from src.dataset import (ParameterDataset, PeakReductionValueType,
-                         SwitchValueType, download_signal_train_dataset_to)
+from src.dataset import (ParameterDataset, PeakReductionValue, SwitchValue,
+                         download_signal_train_dataset_to)
 from src.loss import FilterType, LossType, forge_loss_function_from
-from src.model import ActivationType, DRCModel
+from src.model import Activation, S4LinearModel
 from src.utils import (clear_memory, current_utc_time, get_tensor_device,
                        set_random_seed_to)
 
@@ -31,8 +31,8 @@ class Parameter(RootConfig):
     random_seed: int = 42
 
     dataset_dir: Path = Path('./data/SignalTrain')
-    switch_value: SwitchValueType = 0
-    peak_reduction_value: PeakReductionValueType = 75
+    switch_value: SwitchValue = 0
+    peak_reduction_value: PeakReductionValue = 75
     data_segment_length: float = 1.0
 
     epoch: int = 50
@@ -40,15 +40,15 @@ class Parameter(RootConfig):
     s4_learning_rate: float = 1e-3
     batch_size: int = 64
 
-    model_channel: int = 16
+    model_channel: int = 32
     model_s4_hidden_size: int = 16
-    model_activation: ActivationType = 'GELU'
-    model_depth: int = 2
-    model_take_abs: bool = True
-    model_take_db: bool = True
-    model_take_amp: bool = True
+    model_activation: Activation = 'GELU'
+    model_depth: int = 4
+    model_take_abs: bool = False
+    model_take_db: bool = False
+    model_take_amp: bool = False
 
-    loss: LossType = 'Multi-STFT'
+    loss: LossType = 'ESR+DC+Multi-STFT'
     loss_filter_type: FilterType = 'hp'
     loss_filter_coef: float = -0.85
 
@@ -59,7 +59,7 @@ class Parameter(RootConfig):
     save_checkpoint: bool = True
     checkpoint_dir: Path = DEFAULT_CHECKPOINT_PATH
 
-    keep_s4: bool = False
+    keep_s4: bool = True
 
 
 '''Script parameters.'''
@@ -105,7 +105,7 @@ validation_dataloader = DataLoader(
 )
 
 '''Prepare the model.'''
-model = DRCModel(
+model = S4LinearModel(
     param.model_channel,
     param.model_s4_hidden_size,
     param.s4_learning_rate,
@@ -137,6 +137,8 @@ validation_criterions: dict[LossType, nn.Module] = {
 optimizer = AdamW(model.parameters(), lr=param.learning_rate)
 
 '''Training loop'''
+if param.log_wandb:
+    wandb.watch(model, log='all')
 for epoch in range(param.epoch):
     clear_memory()
 
@@ -198,3 +200,6 @@ for epoch in range(param.epoch):
         } | batch_validation_loss)
     if param.save_checkpoint:
         torch.save(model.state_dict(), job_dir / f'model-epoch-{epoch}.pth')
+
+if param.log_wandb:
+    wandb.finish()

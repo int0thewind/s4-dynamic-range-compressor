@@ -8,7 +8,7 @@ from torch import Tensor
 
 from .layer import DSSM, Absolute, Amplitude, Decibel, Rearrange
 
-__all__ = ['Activation', 'S4LinearModel']
+__all__ = ['Activation', 'S4LinearModelV1']
 
 Activation = Literal['tanh', 'sigmoid', 'GELU', 'ReLU', 'Identity']
 
@@ -32,7 +32,7 @@ class DRCModel(ABC, nn.Module):
 #         super().__init__()
 
 
-class S4LinearModel(DRCModel):
+class S4LinearModelV1(DRCModel):
     _side_chain: nn.Sequential
 
     def side_chain(self) -> nn.Module:

@@ -19,7 +19,7 @@ from src.dataset import (DatasetType, FixDataset, ParameterDataset,
                          PeakReductionValue, SwitchValue,
                          download_signal_train_dataset_to)
 from src.loss import FilterType, LossType, forge_loss_function_from
-from src.model import Activation, S4LinearModel
+from src.model import Activation, S4LinearModelV1
 from src.utils import (clear_memory, current_utc_time, get_tensor_device,
                        set_random_seed_to)
 
@@ -40,12 +40,12 @@ class Parameter(RootConfig):
     epoch: int = 50
     learning_rate: float = 1e-3
     s4_learning_rate: float = 1e-3
-    batch_size: int = 64
+    batch_size: int = 32
 
-    model_channel: int = 32
+    model_channel: int = 16
     model_s4_hidden_size: int = 16
     model_activation: Activation = 'GELU'
-    model_depth: int = 4
+    model_depth: int = 6
     model_take_abs: bool = False
     model_take_db: bool = False
     model_take_amp: bool = False
@@ -106,7 +106,7 @@ validation_dataloader = DataLoader(
 )
 
 '''Prepare the model.'''
-model = S4LinearModel(
+model = S4LinearModelV1(
     param.model_channel,
     param.model_s4_hidden_size,
     param.s4_learning_rate,

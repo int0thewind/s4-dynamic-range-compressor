@@ -6,6 +6,7 @@ from typing import get_args
 
 import torch
 import torch.nn as nn
+import wandb
 from rootconfig import RootConfig
 from torch import Tensor
 from torch.optim import AdamW
@@ -13,9 +14,9 @@ from torch.utils.data import DataLoader, random_split
 from torchinfo import summary
 from tqdm import tqdm
 
-import wandb
 from src.constant import *
-from src.dataset import (ParameterDataset, PeakReductionValue, SwitchValue,
+from src.dataset import (DatasetType, FixDataset, ParameterDataset,
+                         PeakReductionValue, SwitchValue,
                          download_signal_train_dataset_to)
 from src.loss import FilterType, LossType, forge_loss_function_from
 from src.model import Activation, S4LinearModel
@@ -31,8 +32,9 @@ class Parameter(RootConfig):
     random_seed: int = 42
 
     dataset_dir: Path = Path('./data/SignalTrain')
-    switch_value: SwitchValue = 0
-    peak_reduction_value: PeakReductionValue = 75
+    dataset_type: DatasetType = 'fix'
+    switch_value: SwitchValue = 1
+    peak_reduction_value: PeakReductionValue = 100
     data_segment_length: float = 1.0
 
     epoch: int = 50
@@ -71,7 +73,7 @@ download_signal_train_dataset_to(param.dataset_dir)
 set_random_seed_to(param.random_seed)
 device = get_tensor_device(apple_silicon=False)
 print(f'Device {device} detected.')
-job_name = current_utc_time()
+job_name = hex(hash(param))[2:]
 job_dir = (param.checkpoint_dir / job_name)
 
 if param.save_checkpoint:
@@ -88,20 +90,19 @@ if param.log_wandb:
     )
 
 '''Prepare the dataset.'''
-dataset = ParameterDataset(
-    param.dataset_dir,
-    param.data_segment_length,
-    param.switch_value,
-    param.peak_reduction_value,
-)
-training_dataset, validation_dataset = random_split(dataset, [0.85, 0.15])
+training_dataset = FixDataset(
+    param.dataset_dir, param.data_segment_length, 'train')
+validation_dataset = FixDataset(
+    param.dataset_dir, param.data_segment_length, 'val')
+testing_dataset = FixDataset(
+    param.dataset_dir, param.data_segment_length, 'test')
 training_dataloader = DataLoader(
     training_dataset, param.batch_size,
-    shuffle=True, collate_fn=dataset.collate_fn
+    shuffle=True, collate_fn=training_dataset.collate_fn
 )
 validation_dataloader = DataLoader(
     validation_dataset, param.batch_size,
-    shuffle=True, collate_fn=dataset.collate_fn
+    shuffle=True, collate_fn=validation_dataset.collate_fn
 )
 
 '''Prepare the model.'''
@@ -117,7 +118,10 @@ model = S4LinearModel(
     param.keep_s4
 ).to(device)
 
-model_statistics = summary(model, (param.batch_size, dataset.segment_size))
+model_statistics = summary(model, (
+    param.batch_size,
+    int(param.data_segment_length * FixDataset.sample_rate)
+))
 if param.save_checkpoint:
     with open(job_dir / 'model-statistics.txt', 'w') as f:
         f.write(str(model_statistics))
@@ -151,7 +155,7 @@ for epoch in range(param.epoch):
         total=len(training_dataloader),
     )
 
-    for x, y in training_bar:
+    for x, y, _ in training_bar:
         x: Tensor
         y: Tensor
         x = x.to(device)
@@ -180,7 +184,7 @@ for epoch in range(param.epoch):
     )
 
     with torch.no_grad():
-        for x, y in validation_bar:
+        for x, y, _ in validation_bar:
             x: Tensor
             y: Tensor
             x = x.to(device)

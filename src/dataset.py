@@ -1,6 +1,7 @@
 import os
 import shutil
 import tarfile
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Literal
 
@@ -12,18 +13,21 @@ from torch.hub import download_url_to_file
 from torch.utils.data import Dataset
 
 __all__ = ['SwitchValue', 'PeakReductionValue',
-           'download_signal_train_dataset_to', 'ParameterDataset']
+           'download_signal_train_dataset_to', 'ParameterDataset', 'FixDataset', 'DatasetType']
 
 SwitchValue = Literal[0, 1]
 PeakReductionValue = Literal[
     0, 5, 10, 15, 20, 25, 30,
     35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100
 ]
-Partition = Literal['Train', 'Test', 'Val']
+DatasetFolder = Literal['Train', 'Test', 'Val']
+Partition = Literal['train', 'test', 'val']
+
+DatasetType = Literal['parameter', 'fix']
 
 param_dict: dict[
     tuple[SwitchValue, PeakReductionValue],
-    list[tuple[Partition, str, str]]
+    list[tuple[DatasetFolder, str, str]]
 ] = {
     (0, 0): [('Train',
               'input_138_.wav',
@@ -303,14 +307,57 @@ def download_signal_train_dataset_to(root: os.PathLike):
     (root / 'SignalTrain_LA2A_Dataset_1.1').unlink()
 
 
-class ParameterDataset(Dataset):
+class AbstractSignalTrainDataset(ABC, Dataset):
     sample_rate = 44100
 
-    switch: SwitchValue
-    peak_reduction: PeakReductionValue
+    @property
+    @abstractmethod
+    def switch_value(self) -> SwitchValue:
+        pass
+
+    @property
+    @abstractmethod
+    def peak_reduction_value(self) -> PeakReductionValue:
+        pass
+
+    @staticmethod
+    def collate_fn(batch: list[tuple[Tensor, Tensor, SwitchValue, PeakReductionValue]]):
+        return (
+            torch.stack([b[0] for b in batch]),
+            torch.stack([b[1] for b in batch]),
+            [(b[2], b[3]) for b in batch],
+        )
+
+    @staticmethod
+    def _slice_audio(file: Path, segment_size: int) -> Tensor:
+        load_result: tuple[Tensor, int] = torchaudio.load(file)  # type: ignore
+        dat, sr = load_result
+        assert sr == AbstractSignalTrainDataset.sample_rate
+        if dat.size(0) != 1:
+            raise ValueError(f'{file} is not a mono audio.')
+
+        size, trill = divmod(dat.size(1), segment_size)
+        if trill != 0:
+            dat = dat[:, :-trill]
+        dat = rearrange(dat.squeeze(0), '(S L) -> S L', S=size)
+
+        return dat
+
+
+class ParameterDataset(AbstractSignalTrainDataset):
+    _switch: SwitchValue
+    _peak_reduction: PeakReductionValue
+
     input_data: Tensor
     output_data: Tensor
-    segment_size: int
+
+    @property
+    def switch_value(self):
+        return self._switch
+
+    @property
+    def peak_reduction_value(self):
+        return self._peak_reduction
 
     def __init__(
         self, dataset_root: os.PathLike, segment_length: float,
@@ -324,6 +371,8 @@ class ParameterDataset(Dataset):
         if not isinstance(dataset_root, Path):
             dataset_root = Path(dataset_root)
 
+        super().__init__()
+
         segment_size = int(segment_length * self.sample_rate)
         input_datas = []
         output_datas = []
@@ -332,22 +381,13 @@ class ParameterDataset(Dataset):
             input_file = dataset_root / parent_folder_name / input_file_name
             output_file = dataset_root / parent_folder_name / output_file_name
 
-            idat: Tensor = torchaudio.load(input_file)[0]  # type: ignore
-            odat: Tensor = torchaudio.load(output_file)[0]  # type: ignore
+            idat: Tensor = self._slice_audio(input_file, segment_size)
+            odat: Tensor = self._slice_audio(output_file, segment_size)
 
             if idat.size() != odat.size():
                 raise ValueError(
                     'The input audio and the output audio does not have the same length.'
                 )
-            if idat.size(0) != 1:
-                raise ValueError('The input audio is not mono.')
-
-            size, trill = divmod(idat.size(1), segment_size)
-            if trill != 0:
-                idat = idat[:, :-trill]
-                odat = odat[:, :-trill]
-            idat = rearrange(idat.squeeze(0), '(S L) -> S L', S=size)
-            odat = rearrange(odat.squeeze(0), '(S L) -> S L', S=size)
 
             input_datas.append(idat)
             output_datas.append(odat)
@@ -356,19 +396,83 @@ class ParameterDataset(Dataset):
         self.output_data = torch.concat(output_datas, dim=0)
         assert self.input_data.size() == self.output_data.size()
 
-        self.switch = switch
-        self.peak_reduction = peak_reduction
-        self.segment_size = segment_size
+        self._switch = switch
+        self._peak_reduction = peak_reduction
 
     def __len__(self):
         return self.input_data.size(0)
 
     def __getitem__(self, i: int):
-        return (self.input_data[i, :], self.output_data[i, :])
-
-    @staticmethod
-    def collate_fn(batch: list[tuple[Tensor, Tensor]]):
         return (
-            torch.stack([f for f, _ in batch]),
-            torch.stack([s for _, s in batch]),
+            self.input_data[i, :],
+            self.output_data[i, :],
+            self.switch_value,
+            self.peak_reduction_value,
         )
+
+
+class FixDataset(AbstractSignalTrainDataset):
+    train_input_file = Path('Train/input_179_.wav')
+    test_input_file = Path('Train/input_221_.wav')
+    val_input_file = Path('Train/input_263_.wav')
+    train_output_file = Path('Train/target_179_LA2A_3c__1__100.wav')
+    test_output_file = Path('Train/target_221_LA2A_3c__1__100.wav')
+    val_output_file = Path('Train/target_263_LA2A_2c__1__100.wav')
+
+    input_data: Tensor
+    output_data: Tensor
+
+    @property
+    def switch_value(self):
+        return 1
+
+    @property
+    def peak_reduction_value(self):
+        return 100
+
+    def __init__(self, dataset_root: os.PathLike, segment_length: float, partition: Partition) -> None:
+        if not (0.0 < segment_length <= 10.0):
+            raise ValueError(
+                'The segment length must be a positive number smaller than 10.'
+            )
+
+        if not isinstance(dataset_root, Path):
+            dataset_root = Path(dataset_root)
+
+        super().__init__()
+
+        segment_size = int(segment_length * self.sample_rate)
+
+        if partition == 'train':
+            input_file = dataset_root / self.train_input_file
+            output_file = dataset_root / self.train_output_file
+        elif partition == 'test':
+            input_file = dataset_root / self.test_input_file
+            output_file = dataset_root / self.test_output_file
+        else:
+            input_file = dataset_root / self.val_input_file
+            output_file = dataset_root / self.val_output_file
+
+        if partition != 'test':
+            self.input_data = self._slice_audio(input_file, segment_size)
+            self.output_data = self._slice_audio(output_file, segment_size)
+        else:
+            self.input_data = torchaudio.load(input_file)[0].flatten()
+            self.output_data = torchaudio.load(output_file)[0].flatten()
+        assert self.input_data.size() == self.output_data.size()
+
+    def __len__(self):
+        return self.input_data.size(0)
+
+    def __getitem__(self, i: int):
+        return (
+            self.input_data[i, :],
+            self.output_data[i, :],
+            self.switch_value,
+            self.peak_reduction_value,
+        )
+
+
+class AllDataset(AbstractSignalTrainDataset):
+    # TODO: finish this dataset for future hyper-conditioning support
+    pass

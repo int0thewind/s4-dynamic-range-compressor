@@ -10,16 +10,15 @@ import wandb
 from rootconfig import RootConfig
 from torch import Tensor
 from torch.optim import AdamW
-from torch.utils.data import DataLoader, random_split
-from torchinfo import summary
+from torch.utils.data import DataLoader
+from torchinfo import summary as get_model_info_from
 from tqdm import tqdm
 
 from src.constant import *
-from src.dataset import (DatasetType, FixDataset, ParameterDataset,
-                         PeakReductionValue, SwitchValue,
-                         download_signal_train_dataset_to)
+from src.dataset import (DatasetType, FixDataset, PeakReductionValue,
+                         SwitchValue, download_signal_train_dataset_to)
 from src.loss import FilterType, LossType, forge_loss_function_from
-from src.model import Activation, S4LinearModelV1
+from src.model import Activation, DRCModelVersion, forge_drc_model_by
 from src.utils import (clear_memory, current_utc_time, get_tensor_device,
                        set_random_seed_to)
 
@@ -42,12 +41,13 @@ class Parameter(RootConfig):
     s4_learning_rate: float = 1e-3
     batch_size: int = 32
 
-    model_channel: int = 16
+    model_version: DRCModelVersion = 1
+    model_inner_audio_channel: int = 16
     model_s4_hidden_size: int = 16
     model_activation: Activation = 'GELU'
     model_depth: int = 6
-    model_take_abs: bool = False
     model_take_db: bool = False
+    model_take_abs: bool = False
     model_take_amp: bool = False
 
     loss: LossType = 'ESR+DC+Multi-STFT'
@@ -60,8 +60,6 @@ class Parameter(RootConfig):
 
     save_checkpoint: bool = True
     checkpoint_dir: Path = DEFAULT_CHECKPOINT_PATH
-
-    keep_s4: bool = True
 
 
 '''Script parameters.'''
@@ -106,8 +104,9 @@ validation_dataloader = DataLoader(
 )
 
 '''Prepare the model.'''
-model = S4LinearModelV1(
-    param.model_channel,
+model = forge_drc_model_by(
+    param.model_version,
+    param.model_inner_audio_channel,
     param.model_s4_hidden_size,
     param.s4_learning_rate,
     param.model_depth,
@@ -115,16 +114,15 @@ model = S4LinearModelV1(
     param.model_take_db,
     param.model_take_abs,
     param.model_take_amp,
-    param.keep_s4
 ).to(device)
 
-model_statistics = summary(model, (
+model_info = get_model_info_from(model, (
     param.batch_size,
     int(param.data_segment_length * FixDataset.sample_rate)
 ))
 if param.save_checkpoint:
     with open(job_dir / 'model-statistics.txt', 'w') as f:
-        f.write(str(model_statistics))
+        f.write(str(model_info))
 
 '''Loss function'''
 criterion = forge_loss_function_from(
@@ -197,6 +195,9 @@ for epoch in range(param.epoch):
                 batch_validation_loss[f'Validation Loss: {validation_loss}'] += (
                     this_loss.item() / len(validation_dataloader)
                 )
+
+    with torch.no_grad():
+        pass
 
     if param.log_wandb:
         wandb.log({

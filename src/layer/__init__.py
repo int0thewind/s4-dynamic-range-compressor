@@ -1,3 +1,9 @@
+"""The layer module.
+
+This module defines some fundational and elementry layers
+that can be utilized by the actual training model.
+"""
+
 from .abs import Absolute
 from .amp import Amplitude
 from .db import Decibel

@@ -6,11 +6,11 @@ from auraloss.perceptual import FIRFilter
 from auraloss.time import DCLoss, ESRLoss
 from torch import Tensor
 
-LossType = Literal[
-    'MSE', 'ESR+DC', 'Multi-STFT', 'ESR+DC+Multi-STFT',
-]
+LossType = Literal['MSE', 'ESR', 'ESR+DC', 'Multi-STFT', 'ESR+DC+Multi-STFT']
 
 FilterType = Literal['hp', 'lp']
+
+# TODO: preemphasis filter is not added yet.
 
 
 class EsrDcLoss(nn.Module):
@@ -62,9 +62,10 @@ def forge_loss_function_from(
 
     if loss_type == 'MSE':
         return nn.MSELoss()
-    elif loss_type == 'ESR+DC':
+    if loss_type == 'ESR':
+        return ESRLoss()  # TODO add preemphasis filter
+    if loss_type == 'ESR+DC':
         return EsrDcLoss(filter_type, filter_coef)
-    elif loss_type == 'Multi-STFT':
+    if loss_type == 'Multi-STFT':
         return MultiResolutionSTFTLoss()
-
     return EsrDcStftLoss(filter_type, filter_coef)

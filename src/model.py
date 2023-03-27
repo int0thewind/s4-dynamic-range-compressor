@@ -33,7 +33,7 @@ def get_activation_type_from(activation: Activation) -> Type[nn.Module]:
     return nn.Identity
 
 
-class DRCModel(ABC, nn.Module):
+class AbstractDRCSideChainModel(ABC, nn.Module):
     side_chain: nn.Module
 
     @staticmethod
@@ -80,7 +80,7 @@ class DRCModel(ABC, nn.Module):
         return x * self.side_chain(x)
 
 
-class DRCModelV0(DRCModel):
+class DRCModelV0(AbstractDRCSideChainModel):
     @staticmethod
     def forge_layer_sequence(
         inner_audio_channel: int, s4_hidden_size: int,
@@ -109,7 +109,7 @@ class DRCModelV0(DRCModel):
         return layers
 
 
-class DRCModelV1(DRCModel):
+class DRCModelV1(AbstractDRCSideChainModel):
     @staticmethod
     def forge_layer_sequence(
         inner_audio_channel: int, s4_hidden_size: int,
@@ -144,7 +144,7 @@ class DRCModelV1(DRCModel):
         return layers
 
 
-class DRCModelV2(DRCModel):
+class DRCModelV2(AbstractDRCSideChainModel):
     @staticmethod
     def forge_layer_sequence(
         inner_audio_channel: int, s4_hidden_size: int,
@@ -187,7 +187,7 @@ def forge_drc_model_by(
     s4_learning_rate: float | None,
     model_depth: int, activation: Activation,
     take_db: bool, take_abs: bool, take_amp: bool,
-) -> DRCModel:
+) -> AbstractDRCSideChainModel:
     if model_version == 1:
         return DRCModelV1(
             inner_audio_channel, s4_hidden_size,

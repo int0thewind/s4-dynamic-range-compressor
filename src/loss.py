@@ -12,14 +12,16 @@ LossType = Literal['MSE', 'ESR', 'ESR+DC', 'Multi-STFT', 'ESR+DC+Multi-STFT']
 class PreEmphasisESRLoss(nn.Module):
     def __init__(self, filter_coef: float | None) -> None:
         super().__init__()
-        layers = []
         if filter_coef is not None and 0 < filter_coef < 1:
-            layers.append(FIRFilter('hp', filter_coef, 44100))
-        layers.append(ESRLoss())
-        self.loss = nn.Sequential(*layers)
+            self.pre_emphasis_filter = FIRFilter('hp', filter_coef, 44100)
+        else:
+            self.pre_emphasis_filter = None
+        self.esr = ESRLoss()
 
     def forward(self, y_hat: Tensor, y: Tensor) -> Tensor:
-        return self.loss(y_hat, y)
+        if self.pre_emphasis_filter:
+            y_hat, y = self.pre_emphasis_filter(y_hat, y)
+        return self.esr(y_hat, y)
 
 
 class EsrDcLoss(nn.Module):
@@ -29,7 +31,7 @@ class EsrDcLoss(nn.Module):
         self.dc = DCLoss()
 
     def forward(self, y_hat: Tensor, y: Tensor) -> Tensor:
-        return self.esr() + self.dc(y_hat, y)
+        return self.esr(y_hat, y) + self.dc(y_hat, y)
 
 
 class EsrDcStftLoss(nn.Module):
@@ -40,7 +42,7 @@ class EsrDcStftLoss(nn.Module):
         self.stft = MultiResolutionSTFTLoss()
 
     def forward(self, y_hat: Tensor, y: Tensor) -> Tensor:
-        return self.esr() + self.dc(y_hat, y) + self.stft(y_hat, y)
+        return self.esr(y_hat, y) + self.dc(y_hat, y) + self.stft(y_hat, y)
 
 
 def forge_loss_function_from(loss_type: LossType, filter_coef: float) -> nn.Module:

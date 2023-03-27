@@ -21,7 +21,7 @@ from tqdm import tqdm
 from src.dataset import FixDataset, download_signal_train_dataset_to
 from src.evaluation import (evaluate_rms_difference,
                             evaluate_waveform_difference)
-from src.loss import FilterType, LossType, forge_loss_function_from
+from src.loss import LossType, forge_loss_function_from
 from src.model import Activation, DRCModelVersion, forge_drc_model_by
 from src.utils import clear_memory, current_utc_time, set_random_seed_to
 
@@ -51,7 +51,6 @@ class Parameter(RootConfig):
     model_take_amp: bool = False
 
     loss: LossType = 'ESR+DC+Multi-STFT'
-    loss_filter_type: FilterType = 'hp'
     loss_filter_coef: float = 0.0
 
     log_wandb: bool = True
@@ -122,12 +121,11 @@ if param.save_checkpoint:
 
 '''Loss function'''
 criterion = forge_loss_function_from(
-    param.loss, param.loss_filter_type, param.loss_filter_coef
-).to(device)
+    param.loss, param.loss_filter_coef).to(device)
 validation_criterions: dict[LossType, nn.Module] = {
     loss_type: forge_loss_function_from(
-        loss_type, param.loss_filter_type, param.loss_filter_coef
-    ).eval().to(device) for loss_type in get_args(LossType)
+        loss_type, param.loss_filter_coef).eval().to(device)
+    for loss_type in get_args(LossType)
 }
 
 '''Prepare the optimizer'''

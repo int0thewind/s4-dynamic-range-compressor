@@ -22,6 +22,7 @@ ipywidgets = "*"
 torchvision = "*"
 pyloudnorm = "*"
 torchinfo = "*"
+matplotlib = "*"
 
 [dev-packages]
 autopep8 = "*"

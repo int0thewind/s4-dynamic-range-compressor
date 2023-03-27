@@ -6,7 +6,7 @@ from einops import rearrange
 from numpy.typing import NDArray
 from torch import Tensor
 
-__all__ = ['calculate_waveform_difference', 'calculate_rms_difference']
+__all__ = ['evaluate_waveform_difference', 'evaluate_rms_difference']
 
 
 ReductionMethod = Literal['rms', 'mean', 'sum']
@@ -27,7 +27,7 @@ def reduce_sequence_by(reduction_method: ReductionMethod, sequence: Tensor) -> f
 
 
 @torch.no_grad()
-def calculate_waveform_difference(
+def evaluate_waveform_difference(
     prediction: Tensor, target: Tensor, reduction_method: ReductionMethod = 'rms',
 ) -> tuple[NDArray[np.float32], float]:
     assert prediction.dim() == 1 and target.dim() == 1
@@ -37,7 +37,7 @@ def calculate_waveform_difference(
 
 
 @torch.no_grad()
-def calculate_rms_difference(
+def evaluate_rms_difference(
     prediction: Tensor, target: Tensor, reduction_method: ReductionMethod = 'rms',
 ) -> tuple[NDArray[np.float32], float]:
     assert prediction.dim() == 1 and target.dim() == 1

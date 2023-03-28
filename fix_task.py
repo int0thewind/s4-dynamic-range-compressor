@@ -22,7 +22,7 @@ from src.dataset import FixDataset, download_signal_train_dataset_to
 from src.evaluation import (evaluate_rms_difference,
                             evaluate_waveform_difference)
 from src.loss import LossType, forge_loss_function_from
-from src.model import Activation, DRCModelVersion, forge_drc_model_by
+from src.model import Activation, DRCSideChainModelVersion, forge_drc_model_by
 from src.utils import clear_memory, current_utc_time, set_random_seed_to
 
 if __name__ != '__main__':
@@ -41,7 +41,7 @@ class Parameter(RootConfig):
     s4_learning_rate: float = 1e-3
     batch_size: int = 32
 
-    model_version: DRCModelVersion = 1
+    model_version: DRCSideChainModelVersion = 1
     model_inner_audio_channel: int = 16
     model_s4_hidden_size: int = 16
     model_activation: Activation = 'GELU'

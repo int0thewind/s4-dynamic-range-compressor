@@ -3,14 +3,6 @@ experiment-result/
 *.ckpt
 wandb/
 
-# Excluding environment management tool's *.lock file is controversal.
-# Here, I'm doing this for PyTorch installation.
-# During installation, PyTorch may request various Nvidia packages, 
-# which are not available on macOS.
-# Doing so will always force `pip` to install PyTorch from the ground up,
-# resolving packages independently on different oprating systems. 
-Pipfile.lock
-
 # Created by https://www.toptal.com/developers/gitignore/api/python,visualstudiocode,jetbrains,macos,linux,windows
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,visualstudiocode,jetbrains,macos,linux,windows
 
@@ -270,7 +262,7 @@ ipython_config.py
 #   However, in case of collaboration, if having platform-specific dependencies or dependencies
 #   having no cross-platform support, pipenv may install dependencies that don't work, or not
 #   install all needed dependencies.
-#Pipfile.lock
+Pipfile.lock
 
 # poetry
 #   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.

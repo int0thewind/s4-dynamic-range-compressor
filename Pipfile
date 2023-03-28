@@ -23,6 +23,7 @@ torchvision = "*"
 pyloudnorm = "*"
 torchinfo = "*"
 matplotlib = "*"
+soundfile = "*"
 
 [dev-packages]
 autopep8 = "*"

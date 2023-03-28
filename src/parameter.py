@@ -29,7 +29,7 @@ class FixTaskParameter(RootConfig):
     model_take_amp: bool = False
 
     loss: LossType = 'ESR+DC+Multi-STFT'
-    loss_filter_coef: float = 0.0
+    loss_filter_coef: float = 0.85
 
     log_wandb: bool = True
     wandb_entity: str = 'int0thewind'

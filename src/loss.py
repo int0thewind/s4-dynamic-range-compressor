@@ -6,6 +6,10 @@ from auraloss.perceptual import FIRFilter
 from auraloss.time import DCLoss, ESRLoss
 from torch import Tensor
 
+from .layer import Rearrange
+
+__all__ = ['forge_loss_function_from']
+
 LossType = Literal['MSE', 'ESR', 'ESR+DC', 'Multi-STFT', 'ESR+DC+Multi-STFT']
 
 
@@ -20,7 +24,8 @@ class PreEmphasisESRLoss(nn.Module):
 
     def forward(self, y_hat: Tensor, y: Tensor) -> Tensor:
         if self.pre_emphasis_filter:
-            y_hat, y = self.pre_emphasis_filter(y_hat, y)
+            y_hat, y = self.pre_emphasis_filter(
+                y_hat.unsqueeze(1), y.unsqueeze(1))
         return self.esr(y_hat, y)
 
 

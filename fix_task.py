@@ -7,6 +7,7 @@ from typing import get_args
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
+import wandb
 from matplotlib.figure import Figure
 from rootconfig import RootConfig
 from torch import Tensor
@@ -17,7 +18,7 @@ from torch.utils.data import ConcatDataset, DataLoader
 from torchinfo import summary as get_model_info_from
 from tqdm import tqdm
 
-import wandb
+from src.augmentation import invert_phase
 from src.dataset import FixDataset, download_signal_train_dataset_to
 from src.evaluation import (evaluate_rms_difference,
                             evaluate_waveform_difference)
@@ -152,6 +153,8 @@ for epoch in range(param.epoch):
     for x, y, _ in training_bar:
         x: Tensor
         y: Tensor
+        if torch.rand(1).item() < 0.5:
+            x, y = invert_phase(x, y)
         x = x.to(device)
         y = y.to(device)
 

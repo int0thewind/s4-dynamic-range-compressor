@@ -223,6 +223,9 @@ def forge_drc_model_by(
     model_depth: int, activation: Activation,
     take_db: bool, take_abs: bool, take_amp: bool,
 ) -> AbstractDRCSideChainModel:
+    if not model_version in get_args(DRCSideChainModelVersion):
+        raise ValueError(
+            f'Unsupported model version. Expect one of {get_args(DRCSideChainModelVersion)}.')
     if model_version == 1:
         return DRCSideChainModelV1(
             inner_audio_channel, s4_hidden_size,
@@ -231,6 +234,13 @@ def forge_drc_model_by(
             take_db, take_abs, take_amp,
         )
     if model_version == 2:
+        return DRCSideChainModelV2(
+            inner_audio_channel, s4_hidden_size,
+            s4_learning_rate,
+            model_depth, activation,
+            take_db, take_abs, take_amp,
+        )
+    if model_version == 3:
         return DRCSideChainModelV3(
             inner_audio_channel, s4_hidden_size,
             s4_learning_rate,

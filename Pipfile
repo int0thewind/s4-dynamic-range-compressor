@@ -24,6 +24,7 @@ pyloudnorm = "*"
 torchinfo = "*"
 matplotlib = "*"
 soundfile = "*"
+plotly = "*"
 
 [dev-packages]
 autopep8 = "*"

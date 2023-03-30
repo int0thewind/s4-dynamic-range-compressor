@@ -1,6 +1,7 @@
 from collections import defaultdict
 from pprint import pprint
 from typing import get_args
+import platform
 
 import matplotlib.pyplot as plt
 import torch
@@ -26,7 +27,6 @@ from src.utils import clear_memory, current_utc_time, set_random_seed_to
 
 if __name__ != '__main__':
     raise RuntimeError(f'The main script cannot be imported by other module.')
-
 
 '''Script parameters.'''
 param = FixTaskParameter.parse_args()
@@ -83,8 +83,12 @@ model_info = get_model_info_from(model, (
     int(param.data_segment_length * FixDataset.sample_rate)
 ))
 if param.save_checkpoint:
-    with open(job_dir / 'model-statistics.txt', 'w') as f:
-        f.write(str(model_info))
+    if platform.system() == 'Linux':
+        with open(job_dir / 'model-statistics.txt', 'wb') as f:
+            f.write(str(model_info).encode())
+    else:
+        with open(job_dir / 'model-statistics.txt', 'w') as f:
+            f.write(str(model_info))
 
 '''Loss function'''
 criterion = forge_loss_function_from(

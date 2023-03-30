@@ -6,11 +6,15 @@ from auraloss.perceptual import FIRFilter
 from auraloss.time import DCLoss, ESRLoss
 from torch import Tensor
 
-from .layer import Rearrange
-
 __all__ = ['forge_loss_function_from']
 
-LossType = Literal['MSE', 'ESR', 'ESR+DC', 'Multi-STFT', 'ESR+DC+Multi-STFT']
+LossType = Literal['MAE', 'MSE', 'ESR',
+                   'ESR+DC', 'Multi-STFT', 'ESR+DC+Multi-STFT']
+
+
+class MAELoss(nn.Module):
+    def forward(self, y_hat: Tensor, y: Tensor) -> Tensor:
+        return (y_hat - y).abs().mean()
 
 
 class PreEmphasisESRLoss(nn.Module):
@@ -53,7 +57,8 @@ class EsrDcStftLoss(nn.Module):
 def forge_loss_function_from(loss_type: LossType, filter_coef: float) -> nn.Module:
     if not loss_type in get_args(LossType):
         raise ValueError(f'Unsupported loss type `{loss_type}`.')
-
+    if loss_type == 'MAE':
+        return MAELoss()
     if loss_type == 'MSE':
         return nn.MSELoss()
     if loss_type == 'ESR':

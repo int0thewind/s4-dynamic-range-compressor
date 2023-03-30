@@ -5,7 +5,6 @@ from typing import get_args
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
-import wandb
 from matplotlib.figure import Figure
 from torch import Tensor
 from torch.cuda import is_available as cuda_is_available
@@ -15,6 +14,7 @@ from torch.utils.data import ConcatDataset, DataLoader
 from torchinfo import summary as get_model_info_from
 from tqdm import tqdm
 
+import wandb
 from src.augmentation import invert_phase
 from src.dataset import FixDataset, download_signal_train_dataset_to
 from src.evaluation import (evaluate_rms_difference,
@@ -166,7 +166,7 @@ for epoch in range(param.epoch):
             rms_diff, rms_val = evaluate_rms_difference(y_hat, y, 'rms')
             validation_evaluation_values['RMS Difference RMS'] += rms_val
 
-            if epoch >= 10:  # Only log plots when the model is stable.
+            if epoch >= 10 and epoch % 5 == 0:  # Only log plots when the model is stable.
                 w_figure, w_ax = plt.subplots()
                 w_ax.plot(w_val)
                 validation_evaluation_plots[f'Epoch {epoch} Waveform Difference {i}'] = w_figure
@@ -175,7 +175,6 @@ for epoch in range(param.epoch):
                 rms_ax.plot(rms_val)
                 validation_evaluation_plots[f'Epoch {epoch} RMS Difference {i}'] = rms_figure
 
-            if epoch % 5 == 0:  # Only occasionally log audio.
                 validation_audio[f'Epoch {epoch} Clip {i}'] = wandb.Audio(
                     y_hat.detach().cpu().numpy(), validation_dataset.sample_rate)
 

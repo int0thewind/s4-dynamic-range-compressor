@@ -160,7 +160,8 @@ for epoch in range(param.epoch):
             y_hat: Tensor = model(x.unsqueeze(0)).squeeze(0)
 
             for validation_loss, validation_criterion in validation_criterions.items():
-                this_loss: Tensor = validation_criterion(y_hat, y)
+                this_loss: Tensor = validation_criterion(
+                    y_hat.unsqueeze(0), y.unsqueeze(0))
                 validation_losses[f'Validation Loss: {validation_loss}'] += this_loss.item(
                 )
 
@@ -170,7 +171,8 @@ for epoch in range(param.epoch):
             rms_diff, rms_val = evaluate_rms_difference(y_hat, y, 'rms')
             validation_evaluation_values['RMS Difference RMS'] += rms_val
 
-            if epoch >= 10 and epoch % 5 == 0:  # Only log plots when the model is stable.
+            if epoch >= 10 and epoch % 5 == 4:  # Only log plots when the model is stable.
+                # TODO: do table logging.
                 w_figure, w_ax = plt.subplots()
                 w_ax.plot(w_val)
                 validation_evaluation_plots[f'Epoch {epoch} Waveform Difference {i}'] = w_figure

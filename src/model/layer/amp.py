@@ -3,6 +3,8 @@ from torch import Tensor
 
 
 class Amplitude(nn.Module):
+    """Converts decibels to amplitudes."""
+
     def __init__(self) -> None:
         super().__init__()
 

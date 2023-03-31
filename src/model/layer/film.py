@@ -4,16 +4,26 @@ from torch import Tensor
 
 
 class FiLM(nn.Module):
-    batch_norm: nn.BatchNorm1d
-    adaptor: nn.Linear
+    batch_norm: nn.BatchNorm1d | nn.Identity
+    conditional_information_adaptor: nn.Linear
 
-    def __init__(self, num_features: int, cond_dim: int):
+    def __init__(
+        self, feature_numbers: int,
+        conditional_information_dimension: int,
+        take_batch_normalization: bool = False
+    ):
         super().__init__()
-        self.batch_norm = nn.BatchNorm1d(num_features, affine=False)
-        self.adaptor = nn.Linear(cond_dim, num_features * 2)
 
-    def forward(self, x: Tensor, cond: Tensor) -> Tensor:
-        cond = self.adaptor(cond)
+        if take_batch_normalization:
+            self.batch_norm = nn.BatchNorm1d(feature_numbers, affine=False)
+        else:
+            self.batch_norm = nn.Identity()
+
+        self.conditional_information_adaptor = nn.Linear(
+            conditional_information_dimension, feature_numbers * 2)
+
+    def forward(self, x: Tensor, conditional_information: Tensor) -> Tensor:
+        cond = self.conditional_information_adaptor(conditional_information)
         g, b = torch.chunk(cond, 2, dim=-1)
         g = g.permute(0, 2, 1)
         b = b.permute(0, 2, 1)

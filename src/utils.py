@@ -1,7 +1,4 @@
-"""The utility package.
-
-This package exposes utility functions to set random seed, clean memeory, and so on. 
-"""
+"""The utility package."""
 
 import gc
 import random
@@ -19,9 +16,13 @@ def set_random_seed_to(seed: int = 0):
 
 
 def clear_memory():
-    """Clear unused CPU or GPU memory."""
-    # TODO: add apple silicon support if necessary
+    """Clear unused CPU or GPU memory. Supports MPS and CUDA."""
     gc.collect()
+    try:
+        if torch.mps.is_available():
+            torch.mps.empty_cache()
+    except AttributeError:
+        ...
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 

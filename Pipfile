@@ -4,9 +4,9 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-torch = "~=1.13"
-torchaudio = "~=0.13"
-einops = "~=0.6"
+torch = ">=2.0.0"
+torchaudio = "*"
+einops = "*"
 ipython = "*"
 notebook = "*"
 tqdm = "*"

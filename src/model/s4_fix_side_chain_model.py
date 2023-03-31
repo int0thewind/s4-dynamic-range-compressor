@@ -6,7 +6,7 @@ from typing import Literal, Type, get_args
 import torch.nn as nn
 from torch import Tensor
 
-from ..layer import DSSM, Absolute, Amplitude, Decibel, Rearrange
+from .layer import DSSM, Amplitude, Decibel, Rearrange
 
 Activation = Literal['tanh', 'sigmoid', 'GELU', 'ReLU', 'Identity']
 DRCSideChainModelVersion = Literal[0, 1, 2, 3]
@@ -29,7 +29,7 @@ def get_activation_type_from(activation: Activation) -> Type[nn.Module]:
     return nn.Identity
 
 
-class AbstractDRCSideChainModel(ABC, nn.Module):
+class AbstractS4FixSideChainModel(ABC, nn.Module):
     side_chain: nn.Module
 
     @staticmethod
@@ -45,7 +45,7 @@ class AbstractDRCSideChainModel(ABC, nn.Module):
         self, num_channel: int, s4_hidden_size: int,
         s4_learning_rate: float | None,
         model_depth: int, activation: Activation,
-        take_db: bool, take_abs: bool, take_amp: bool,
+        take_db: bool, take_amp: bool,
     ):
         super().__init__()
         if num_channel < 1:
@@ -56,8 +56,6 @@ class AbstractDRCSideChainModel(ABC, nn.Module):
             raise ValueError()
 
         layers: list[nn.Module] = []
-        if take_abs:
-            layers.append(Absolute())
         if take_db:
             layers.append(Decibel())
 
@@ -76,7 +74,7 @@ class AbstractDRCSideChainModel(ABC, nn.Module):
         return x * self.side_chain(x)
 
 
-class DRCSideChainModelV0(AbstractDRCSideChainModel):
+class S4FixSideChainModelV0(AbstractS4FixSideChainModel):
     @staticmethod
     def forge_layer_sequence(
         inner_audio_channel: int, s4_hidden_size: int,
@@ -105,7 +103,7 @@ class DRCSideChainModelV0(AbstractDRCSideChainModel):
         return layers
 
 
-class DRCSideChainModelV1(AbstractDRCSideChainModel):
+class S4FixSideChainModelV1(AbstractS4FixSideChainModel):
     @staticmethod
     def forge_layer_sequence(
         inner_audio_channel: int, s4_hidden_size: int,
@@ -140,7 +138,7 @@ class DRCSideChainModelV1(AbstractDRCSideChainModel):
         return layers
 
 
-class DRCSideChainModelV2(AbstractDRCSideChainModel):
+class S4FixSideChainModelV2(AbstractS4FixSideChainModel):
     @staticmethod
     def forge_layer_sequence(
         inner_audio_channel: int, s4_hidden_size: int,
@@ -175,7 +173,7 @@ class DRCSideChainModelV2(AbstractDRCSideChainModel):
         return layers
 
 
-class DRCSideChainModelV3(AbstractDRCSideChainModel):
+class S4FixSideChainModelV3(AbstractS4FixSideChainModel):
     @staticmethod
     def forge_layer_sequence(
         inner_audio_channel: int, s4_hidden_size: int,
@@ -212,40 +210,28 @@ class DRCSideChainModelV3(AbstractDRCSideChainModel):
         return layers
 
 
-def forge_fix_side_chain_drc_model_by(
+def forge_s4_fix_side_chain_model_by(
     model_version: DRCSideChainModelVersion,
     inner_audio_channel: int, s4_hidden_size: int,
     s4_learning_rate: float | None,
     model_depth: int, activation: Activation,
-    take_db: bool, take_abs: bool, take_amp: bool,
-) -> AbstractDRCSideChainModel:
+    take_db: bool, take_amp: bool,
+) -> AbstractS4FixSideChainModel:
     if not model_version in get_args(DRCSideChainModelVersion):
         raise ValueError(
             f'Unsupported model version. Expect one of {get_args(DRCSideChainModelVersion)}.')
     if model_version == 1:
-        return DRCSideChainModelV1(
-            inner_audio_channel, s4_hidden_size,
-            s4_learning_rate,
-            model_depth, activation,
-            take_db, take_abs, take_amp,
-        )
-    if model_version == 2:
-        return DRCSideChainModelV2(
-            inner_audio_channel, s4_hidden_size,
-            s4_learning_rate,
-            model_depth, activation,
-            take_db, take_abs, take_amp,
-        )
-    if model_version == 3:
-        return DRCSideChainModelV3(
-            inner_audio_channel, s4_hidden_size,
-            s4_learning_rate,
-            model_depth, activation,
-            take_db, take_abs, take_amp,
-        )
-    return DRCSideChainModelV0(
+        TrainingModel = S4FixSideChainModelV1
+    elif model_version == 2:
+        TrainingModel = S4FixSideChainModelV2
+    elif model_version == 3:
+        TrainingModel = S4FixSideChainModelV3
+    else:
+        TrainingModel = S4FixSideChainModelV0
+
+    return TrainingModel(
         inner_audio_channel, s4_hidden_size,
         s4_learning_rate,
         model_depth, activation,
-        take_db, take_abs, take_amp,
+        take_db, take_amp,
     )

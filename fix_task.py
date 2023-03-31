@@ -1,11 +1,12 @@
+import platform
 from collections import defaultdict
 from pprint import pprint
 from typing import get_args
-import platform
 
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
+import wandb
 from matplotlib.figure import Figure
 from torch import Tensor
 from torch.cuda import is_available as cuda_is_available
@@ -15,13 +16,12 @@ from torch.utils.data import ConcatDataset, DataLoader
 from torchinfo import summary as get_model_info_from
 from tqdm import tqdm
 
-import wandb
+from model import forge_fix_side_chain_drc_model_by
 from src.augmentation import invert_phase
 from src.dataset import FixDataset, download_signal_train_dataset_to
 from src.evaluation import (evaluate_rms_difference,
                             evaluate_waveform_difference)
 from src.loss import LossType, forge_loss_function_from
-from src.model import forge_drc_model_by
 from src.parameter import FixTaskParameter
 from src.utils import clear_memory, current_utc_time, set_random_seed_to
 
@@ -67,7 +67,7 @@ dataloader = DataLoader(
 )
 
 '''Prepare the model.'''
-model = forge_drc_model_by(
+model = forge_fix_side_chain_drc_model_by(
     param.model_version,
     param.model_inner_audio_channel,
     param.model_s4_hidden_size,

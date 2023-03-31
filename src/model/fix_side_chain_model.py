@@ -6,11 +6,7 @@ from typing import Literal, Type, get_args
 import torch.nn as nn
 from torch import Tensor
 
-from .layer import DSSM, Absolute, Amplitude, Decibel, Rearrange
-
-__all__ = [
-    'Activation', 'DRCSideChainModelVersion', 'forge_drc_model_by',
-]
+from ..layer import DSSM, Absolute, Amplitude, Decibel, Rearrange
 
 Activation = Literal['tanh', 'sigmoid', 'GELU', 'ReLU', 'Identity']
 DRCSideChainModelVersion = Literal[0, 1, 2, 3]
@@ -216,7 +212,7 @@ class DRCSideChainModelV3(AbstractDRCSideChainModel):
         return layers
 
 
-def forge_drc_model_by(
+def forge_fix_side_chain_drc_model_by(
     model_version: DRCSideChainModelVersion,
     inner_audio_channel: int, s4_hidden_size: int,
     s4_learning_rate: float | None,

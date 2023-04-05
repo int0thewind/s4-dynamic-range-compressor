@@ -4,7 +4,7 @@ from torch import Tensor
 
 
 class FiLM(nn.Module):
-    batch_norm: nn.BatchNorm1d | nn.Identity
+    batch_norm: nn.Module
     conditional_information_adaptor: nn.Linear
 
     def __init__(
@@ -20,7 +20,9 @@ class FiLM(nn.Module):
             self.batch_norm = nn.Identity()
 
         self.conditional_information_adaptor = nn.Linear(
-            conditional_information_dimension, feature_numbers * 2)
+            conditional_information_dimension,
+            feature_numbers * 2
+        )
 
     def forward(self, x: Tensor, conditional_information: Tensor) -> Tensor:
         cond = self.conditional_information_adaptor(conditional_information)

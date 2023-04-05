@@ -16,12 +16,12 @@ from torch.utils.data import ConcatDataset, DataLoader
 from torchinfo import summary as get_model_info_from
 from tqdm import tqdm
 
-from model import forge_s4_fix_side_chain_model_by
 from src.augmentation import invert_phase
 from src.dataset import FixDataset, download_signal_train_dataset_to
 from src.evaluation import (evaluate_rms_difference,
                             evaluate_waveform_difference)
 from src.loss import LossType, forge_loss_function_from
+from src.model import S4FixSideChainModel
 from src.parameter import FixTaskParameter
 from src.utils import clear_memory, current_utc_time, set_random_seed_to
 
@@ -74,8 +74,7 @@ model = forge_s4_fix_side_chain_model_by(
     param.s4_learning_rate,
     param.model_depth,
     param.model_activation,
-    param.model_take_db,
-    param.model_take_amp,
+    param.model_convert_to_decibels,
 ).to(device)
 model_info = get_model_info_from(model, (
     param.batch_size,

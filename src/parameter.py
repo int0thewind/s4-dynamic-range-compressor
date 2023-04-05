@@ -4,7 +4,7 @@ from pathlib import Path
 from rootconfig import RootConfig
 
 from .loss import LossType
-from .model import Activation, DRCSideChainModelVersion
+from .model import Activation, S4FixSideChainModelVersion
 
 
 @dataclass
@@ -19,13 +19,12 @@ class FixTaskParameter(RootConfig):
     s4_learning_rate: float = 1e-3
     batch_size: int = 32
 
-    model_version: DRCSideChainModelVersion = 3
+    model_version: S4FixSideChainModelVersion = 3
     model_inner_audio_channel: int = 16
     model_s4_hidden_size: int = 16
     model_activation: Activation = 'GELU'
     model_depth: int = 2
-    model_take_db: bool = False
-    model_take_amp: bool = False
+    model_convert_to_decibels: bool = False
 
     loss: LossType = 'ESR+DC+Multi-STFT'
     loss_filter_coef: float = 0.85

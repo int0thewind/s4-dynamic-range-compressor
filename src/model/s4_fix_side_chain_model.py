@@ -1,5 +1,3 @@
-"""Definitions of actual training module.
-"""
 from typing import Literal, get_args
 
 import torch.nn as nn

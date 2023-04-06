@@ -6,7 +6,6 @@ from typing import get_args
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
-import wandb
 from matplotlib.figure import Figure
 from torch import Tensor
 from torch.cuda import is_available as cuda_is_available
@@ -16,6 +15,7 @@ from torch.utils.data import ConcatDataset, DataLoader
 from torchinfo import summary as get_model_info_from
 from tqdm import tqdm
 
+import wandb
 from src.augmentation import invert_phase
 from src.dataset import FixDataset, download_signal_train_dataset_to
 from src.evaluation import (evaluate_rms_difference,
@@ -67,7 +67,7 @@ dataloader = DataLoader(
 )
 
 '''Prepare the model.'''
-model = forge_s4_fix_side_chain_model_by(
+model = S4FixSideChainModel(
     param.model_version,
     param.model_inner_audio_channel,
     param.model_s4_hidden_size,
@@ -163,24 +163,24 @@ for epoch in range(param.epoch):
                 validation_losses[f'Validation Loss: {validation_loss}'] += this_loss.item(
                 )
 
-            w_diff, w_val = evaluate_waveform_difference(y_hat, y, 'rms')
-            validation_evaluation_values['Waveform Difference RMS'] += w_val
+            # w_diff, w_val = evaluate_waveform_difference(y_hat, y, 'rms')
+            # validation_evaluation_values['Waveform Difference RMS'] += w_val
 
-            rms_diff, rms_val = evaluate_rms_difference(y_hat, y, 'rms')
-            validation_evaluation_values['RMS Difference RMS'] += rms_val
+            # rms_diff, rms_val = evaluate_rms_difference(y_hat, y, 'rms')
+            # validation_evaluation_values['RMS Difference RMS'] += rms_val
 
-            if epoch >= 10 and epoch % 5 == 4:  # Only log plots when the model is stable.
-                # TODO: do table logging.
-                w_figure, w_ax = plt.subplots()
-                w_ax.plot(w_val)
-                validation_evaluation_plots[f'Epoch {epoch} Waveform Difference {i}'] = w_figure
+            # if epoch >= 10 and epoch % 5 == 4:  # Only log plots when the model is stable.
+            #     # TODO: do table logging.
+            #     w_figure, w_ax = plt.subplots()
+            #     w_ax.plot(w_val)
+            #     validation_evaluation_plots[f'Epoch {epoch} Waveform Difference {i}'] = w_figure
 
-                rms_figure, rms_ax = plt.subplots()
-                rms_ax.plot(rms_val)
-                validation_evaluation_plots[f'Epoch {epoch} RMS Difference {i}'] = rms_figure
+            #     rms_figure, rms_ax = plt.subplots()
+            #     rms_ax.plot(rms_val)
+            #     validation_evaluation_plots[f'Epoch {epoch} RMS Difference {i}'] = rms_figure
 
-                validation_audio[f'Epoch {epoch} Clip {i}'] = wandb.Audio(
-                    y_hat.detach().cpu().numpy(), validation_dataset.sample_rate)
+            #     validation_audio[f'Epoch {epoch} Clip {i}'] = wandb.Audio(
+            #         y_hat.detach().cpu().numpy(), validation_dataset.sample_rate)
 
     for k, v in list(validation_losses.items()):
         validation_losses[k] = v / len(validation_dataset)

@@ -3,10 +3,8 @@ from collections import defaultdict
 from pprint import pprint
 from typing import get_args
 
-import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
-from matplotlib.figure import Figure
 from torch import Tensor
 from torch.cuda import is_available as cuda_is_available
 from torch.cuda.amp.grad_scaler import GradScaler
@@ -18,8 +16,6 @@ from tqdm import tqdm
 import wandb
 from src.augmentation import invert_phase
 from src.dataset import SignalTrainDataset, download_signal_train_dataset_to
-from src.evaluation import (evaluate_rms_difference,
-                            evaluate_waveform_difference)
 from src.loss import LossType, forge_loss_function_from
 from src.model import S4ConditionalSideChainModel
 from src.parameter import ConditionalTaskParameter
@@ -111,7 +107,7 @@ validation_criterions: dict[LossType, nn.Module] = {
 '''Prepare the optimizer'''
 optimizer = AdamW(model.parameters(), lr=param.learning_rate)
 
-'''Prepare the gradient scaler and learning rate scheduler.'''
+'''Prepare the gradient scaler'''
 scaler = GradScaler()
 
 '''Training loop'''
@@ -133,12 +129,13 @@ for epoch in range(param.epoch):
         x: Tensor
         y: Tensor
         parameters: Tensor
-        x = x.to(device)
-        y = y.to(device)
-        parameters = parameters.to(device)
 
         if torch.rand(1).item() < 0.5:
             x, y = invert_phase(x, y)
+
+        x = x.to(device)
+        y = y.to(device)
+        parameters = parameters.to(device)
 
         optimizer.zero_grad()
 
@@ -157,9 +154,6 @@ for epoch in range(param.epoch):
     clear_memory()
 
     validation_losses: defaultdict[str, float] = defaultdict(float)
-    # validation_evaluation_values: defaultdict[str, float] = defaultdict(float)
-    # validation_evaluation_plots: dict[str, Figure] = {}
-    # validation_audio: dict[str, wandb.Audio] = {}
     model.eval()
     criterion.eval()
     validation_bar = tqdm(
@@ -181,37 +175,13 @@ for epoch in range(param.epoch):
                 validation_losses[f'Validation Loss: {validation_loss}'] += this_loss.item(
                 )
 
-            # TODO: complete validation routine.
-            # w_diff, w_val = evaluate_waveform_difference(y_hat, y, 'rms')
-            # validation_evaluation_values['Waveform Difference RMS'] += w_val
-
-            # rms_diff, rms_val = evaluate_rms_difference(y_hat, y, 'rms')
-            # validation_evaluation_values['RMS Difference RMS'] += rms_val
-
-            # if epoch >= 10 and epoch % 5 == 4:  # Only log plots when the model is stable.
-            #     # TODO: do table logging.
-            #     w_figure, w_ax = plt.subplots()
-            #     w_ax.plot(w_val)
-            #     validation_evaluation_plots[f'Epoch {epoch} Waveform Difference {i}'] = w_figure
-
-            #     rms_figure, rms_ax = plt.subplots()
-            #     rms_ax.plot(rms_val)
-            #     validation_evaluation_plots[f'Epoch {epoch} RMS Difference {i}'] = rms_figure
-
-            #     validation_audio[f'Epoch {epoch} Clip {i}'] = wandb.Audio(
-            #         y_hat.detach().cpu().numpy(), validation_dataset.sample_rate)
-
     for k, v in list(validation_losses.items()):
-        validation_losses[k] = v / len(validation_dataset)
-    # for k, v in list(validation_evaluation_values.items()):
-    #     validation_evaluation_values[k] = v / len(validation_dataset)
+        validation_losses[k] = v / len(validation_dataloader)
 
     if param.log_wandb:
         wandb.log({
             f'Training Loss: {param.loss}': training_loss,
-        } | validation_losses
-            #   | validation_audio | validation_evaluation_plots | validation_evaluation_values
-        )
+        } | validation_losses)
     if param.save_checkpoint:
         torch.save(model.state_dict(), job_dir / f'model-epoch-{epoch}.pth')
 

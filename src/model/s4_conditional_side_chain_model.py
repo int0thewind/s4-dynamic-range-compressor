@@ -146,14 +146,23 @@ class S4ConditionalSideChainModel(nn.Module):
 
     def forward(self, x: Tensor, control_parameters: Tensor) -> Tensor:
         cond = self.control_parameter_mlp(control_parameters)
+
         if self.decibel is not None:
-            x = self.decibel(x)
-        x = x.unsqueeze_(-1)
-        x = self.expansion(x)
+            side_chain = self.decibel(x)
+            side_chain = side_chain.unsqueeze_(-1)
+        else:
+            side_chain = x.unsqueeze(-1)
+
+        side_chain = self.expansion(side_chain)
+
         for block in self.side_chain_blocks:
-            x = block(x, cond)
-        x = self.contraction(x)
-        x = x.squeeze_(-1)
+            side_chain = block(side_chain, cond)
+
+        side_chain = self.contraction(side_chain)
+
+        side_chain = side_chain.squeeze_(-1)
+
         if self.amplitude is not None:
-            x = self.amplitude(x)
-        return x
+            side_chain = self.amplitude(side_chain)
+
+        return x * side_chain

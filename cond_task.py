@@ -125,21 +125,21 @@ for epoch in range(param.epoch):
         total=len(training_dataloader),
     )
 
-    for x, y, parameters in training_bar:
-        x: Tensor
+    for side_chain, y, parameters in training_bar:
+        side_chain: Tensor
         y: Tensor
         parameters: Tensor
 
         if torch.rand(1).item() < 0.5:
-            x, y = invert_phase(x, y)
+            side_chain, y = invert_phase(side_chain, y)
 
-        x = x.to(device)
+        side_chain = side_chain.to(device)
         y = y.to(device)
         parameters = parameters.to(device)
 
         optimizer.zero_grad()
 
-        y_hat: Tensor = model(x, parameters)
+        y_hat: Tensor = model(side_chain, parameters)
         loss: Tensor = criterion(y_hat, y)
 
         scaler.scale(loss).backward()  # type: ignore
@@ -163,12 +163,12 @@ for epoch in range(param.epoch):
     )
 
     with torch.no_grad():
-        for x, y, parameters in validation_bar:
-            x: Tensor = x.to(device)
+        for side_chain, y, parameters in validation_bar:
+            side_chain: Tensor = side_chain.to(device)
             y: Tensor = y.to(device)
             parameters: Tensor = parameters.to(device)
 
-            y_hat: Tensor = model(x, parameters)
+            y_hat: Tensor = model(side_chain, parameters)
 
             for validation_loss, validation_criterion in validation_criterions.items():
                 this_loss: Tensor = validation_criterion(y_hat, y)

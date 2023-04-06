@@ -55,13 +55,13 @@ if param.log_wandb:
     )
 
 '''Prepare the dataset.'''
-training_dataset = SignalTrainDataset(param.dataset_dir, 'test', 1.0)
+training_dataset = SignalTrainDataset(param.dataset_dir, 'train', 1.0)
 training_dataloader = DataLoader(
     training_dataset, param.batch_size,
     shuffle=True, pin_memory=True,
     collate_fn=training_dataset.collate_fn,
 )
-validation_dataset = SignalTrainDataset(param.dataset_dir, 'test', 30.0)
+validation_dataset = SignalTrainDataset(param.dataset_dir, 'validation', 5.0)
 validation_dataloader = DataLoader(
     validation_dataset, param.batch_size,
     shuffle=True, pin_memory=True,
@@ -155,17 +155,16 @@ for epoch in range(param.epoch):
     validation_losses: defaultdict[str, float] = defaultdict(float)
     # validation_evaluation_values: defaultdict[str, float] = defaultdict(float)
     # validation_evaluation_plots: dict[str, Figure] = {}
-    validation_audio: dict[str, wandb.Audio] = {}
+    # validation_audio: dict[str, wandb.Audio] = {}
     model.eval()
     criterion.eval()
     validation_bar = tqdm(
         validation_dataloader,
-        desc=f'Training. {epoch = }',
+        desc=f'Validating. {epoch = }',
         total=len(training_dataloader),
     )
 
     with torch.no_grad():
-        print(f'Validating. {epoch = }')
         for x, y, parameters in validation_bar:
             x: Tensor = x.to(device)
             y: Tensor = y.to(device)
@@ -206,8 +205,8 @@ for epoch in range(param.epoch):
     if param.log_wandb:
         wandb.log({
             f'Training Loss: {param.loss}': training_loss,
-        } | validation_losses | validation_audio
-            # | validation_evaluation_plots | validation_evaluation_values
+        } | validation_losses
+            #   | validation_audio | validation_evaluation_plots | validation_evaluation_values
         )
     if param.save_checkpoint:
         torch.save(model.state_dict(), job_dir / f'model-epoch-{epoch}.pth')

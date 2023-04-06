@@ -45,7 +45,7 @@ class ConditionalTaskParameter(RootConfig):
     dataset_dir: Path = Path('./data/SignalTrain')
     data_segment_length: float = 1.0
 
-    epoch: int = 75
+    epoch: int = 100
     learning_rate: float = 1e-3
     s4_learning_rate: float = 1e-3
     batch_size: int = 32
@@ -55,9 +55,9 @@ class ConditionalTaskParameter(RootConfig):
     model_film_take_batch_normalization: bool = False
     model_version: S4ConditionalSideChainModelVersion = 1
     model_inner_audio_channel: int = 32
-    model_s4_hidden_size: int = 16
+    model_s4_hidden_size: int = 8
     model_activation: Activation = 'GELU'
-    model_depth: int = 2
+    model_depth: int = 4
     model_convert_to_decibels: bool = False
 
     loss: LossType = 'ESR+DC+Multi-STFT'

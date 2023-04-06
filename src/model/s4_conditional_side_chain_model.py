@@ -1,10 +1,11 @@
 from typing import Literal, get_args
 
 import torch.nn as nn
+from einops import rearrange
 from torch import Tensor
 
 from .activation import Activation, get_activation_type_from
-from .layer import DSSM, Amplitude, Decibel, FiLM, Rearrange
+from .layer import DSSM, Amplitude, Decibel, FiLM
 
 ModelVersion = Literal[1, 2]
 
@@ -21,13 +22,11 @@ class BlockV1(nn.Module):
         Act = get_activation_type_from(activation)
         self.linear = nn.Linear(inner_audio_channel, inner_audio_channel)
         self.act1 = Act()
-        self.rearrange1 = Rearrange('B L H -> B H L')
         self.s4 = DSSM(
             inner_audio_channel,
             s4_hidden_size,
             lr=s4_learning_rate
         )
-        self.rearrange2 = Rearrange('B H L -> B L H')
         self.film = FiLM(
             inner_audio_channel,
             conditional_information_dimension,
@@ -38,11 +37,13 @@ class BlockV1(nn.Module):
     def forward(self, x: Tensor, conditional_information: Tensor) -> Tensor:
         x = self.linear(x)
         x = self.act1(x)
-        x = self.rearrange1(x)
+
+        x = rearrange(x, 'B L H -> B H L')
         x = self.s4(x)
-        x = self.rearrange2(x)
+        x = rearrange(x, 'B H L -> B L H')
         x = self.film(x, conditional_information)
         x = self.act2(x)
+
         return x
 
 
@@ -58,13 +59,11 @@ class BlockV2(nn.Module):
         super().__init__()
         Act = get_activation_type_from(activation)
 
-        self.rearrange1 = Rearrange('B L H -> B H L')
         self.s4 = DSSM(
             inner_audio_channel,
             s4_hidden_size,
             lr=s4_learning_rate
         )
-        self.rearrange2 = Rearrange('B H L -> B L H')
         self.film = FiLM(
             inner_audio_channel,
             conditional_information_dimension,
@@ -73,7 +72,9 @@ class BlockV2(nn.Module):
         self.act = Act()
 
     def forward(self, x: Tensor, conditional_information: Tensor) -> Tensor:
+        x = rearrange(x, 'B L H -> B H L')
         x = self.s4(x)
+        x = rearrange(x, 'B H L -> B L H')
         x = self.film(x, conditional_information)
         x = self.act(x)
         return x
@@ -82,11 +83,9 @@ class BlockV2(nn.Module):
 class S4ConditionalSideChainModel(nn.Module):
     control_parameter_mlp: nn.Sequential
     decibel: Decibel | None
-    rearrange1: Rearrange
     expansion: nn.Linear
     side_chain_blocks: nn.ModuleList
     contraction: nn.Linear
-    rearrange2: Rearrange
     amplitude: Amplitude | None
 
     def __init__(
@@ -124,7 +123,6 @@ class S4ConditionalSideChainModel(nn.Module):
         )
 
         self.decibel = Decibel() if convert_to_decibels else None
-        self.rearrange1 = Rearrange('B L -> B L 1')
         self.expansion = nn.Linear(1, inner_audio_channel)
 
         if model_version == 1:
@@ -144,19 +142,18 @@ class S4ConditionalSideChainModel(nn.Module):
         ])
 
         self.contraction = nn.Linear(inner_audio_channel, 1)
-        self.rearrange2 = Rearrange('B L 1 -> B L')
         self.amplitude = Amplitude() if convert_to_decibels else None
 
     def forward(self, x: Tensor, control_parameters: Tensor) -> Tensor:
         cond = self.control_parameter_mlp(control_parameters)
         if self.decibel is not None:
             x = self.decibel(x)
-        x = self.rearrange1(x)
+        x = x.unsqueeze_(-1)
         x = self.expansion(x)
         for block in self.side_chain_blocks:
             x = block(x, cond)
         x = self.contraction(x)
-        x = self.rearrange2(x)
+        x = x.squeeze_(-1)
         if self.amplitude is not None:
             x = self.amplitude(x)
         return x

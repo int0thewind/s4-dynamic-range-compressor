@@ -6,7 +6,6 @@ from typing import get_args
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
-import wandb
 from matplotlib.figure import Figure
 from torch import Tensor
 from torch.cuda import is_available as cuda_is_available
@@ -16,6 +15,7 @@ from torch.utils.data import DataLoader
 from torchinfo import summary as get_model_info_from
 from tqdm import tqdm
 
+import wandb
 from src.augmentation import invert_phase
 from src.dataset import SignalTrainDataset, download_signal_train_dataset_to
 from src.evaluation import (evaluate_rms_difference,
@@ -27,6 +27,10 @@ from src.utils import clear_memory, current_utc_time, set_random_seed_to
 
 if __name__ != '__main__':
     raise RuntimeError(f'The main script cannot be imported by other module.')
+
+
+# TODO: consider adding learning rate scheduler
+# But firstly, how to deal with S4 custom learning rate?
 
 '''Script parameters.'''
 param = ConditionalTaskParameter.parse_args()
@@ -61,7 +65,7 @@ training_dataloader = DataLoader(
     shuffle=True, pin_memory=True,
     collate_fn=training_dataset.collate_fn,
 )
-validation_dataset = SignalTrainDataset(param.dataset_dir, 'validation', 5.0)
+validation_dataset = SignalTrainDataset(param.dataset_dir, 'validation', 3.0)
 validation_dataloader = DataLoader(
     validation_dataset, param.batch_size,
     shuffle=True, pin_memory=True,
@@ -107,7 +111,7 @@ validation_criterions: dict[LossType, nn.Module] = {
 '''Prepare the optimizer'''
 optimizer = AdamW(model.parameters(), lr=param.learning_rate)
 
-'''Prepare the gradient scaler'''
+'''Prepare the gradient scaler and learning rate scheduler.'''
 scaler = GradScaler()
 
 '''Training loop'''
@@ -161,7 +165,7 @@ for epoch in range(param.epoch):
     validation_bar = tqdm(
         validation_dataloader,
         desc=f'Validating. {epoch = }',
-        total=len(training_dataloader),
+        total=len(validation_dataloader),
     )
 
     with torch.no_grad():

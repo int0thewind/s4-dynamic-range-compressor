@@ -55,13 +55,13 @@ if param.log_wandb:
     )
 
 '''Prepare the dataset.'''
-training_dataset = SignalTrainDataset(param.dataset_dir, 'train', 1.0)
+training_dataset = SignalTrainDataset(param.dataset_dir, 'test', 1.0)
 training_dataloader = DataLoader(
     training_dataset, param.batch_size,
     shuffle=True, pin_memory=True,
     collate_fn=training_dataset.collate_fn,
 )
-validation_dataset = SignalTrainDataset(param.dataset_dir, 'val', 30.0)
+validation_dataset = SignalTrainDataset(param.dataset_dir, 'test', 30.0)
 validation_dataloader = DataLoader(
     validation_dataset, param.batch_size,
     shuffle=True, pin_memory=True,
@@ -82,8 +82,10 @@ model = S4ConditionalSideChainModel(
     param.model_convert_to_decibels,
 ).to(device)
 model_info = get_model_info_from(model, (
-    param.batch_size,
-    int(param.data_segment_length * SignalTrainDataset.sample_rate)
+    (param.batch_size,
+        int(param.data_segment_length * SignalTrainDataset.sample_rate)),
+    (param.batch_size, 2)
+
 ))
 if param.save_checkpoint:
     if platform.system() == 'Linux':
@@ -127,11 +129,12 @@ for epoch in range(param.epoch):
         x: Tensor
         y: Tensor
         parameters: Tensor
-        if torch.rand(1).item() < 0.5:
-            x, y = invert_phase(x, y)  # Data augmentation
         x = x.to(device)
         y = y.to(device)
         parameters = parameters.to(device)
+
+        if torch.rand(1).item() < 0.5:
+            x, y = invert_phase(x, y)
 
         optimizer.zero_grad()
 
@@ -155,18 +158,23 @@ for epoch in range(param.epoch):
     validation_audio: dict[str, wandb.Audio] = {}
     model.eval()
     criterion.eval()
+    validation_bar = tqdm(
+        validation_dataloader,
+        desc=f'Training. {epoch = }',
+        total=len(training_dataloader),
+    )
 
     with torch.no_grad():
         print(f'Validating. {epoch = }')
-        for i, (x, y, _) in enumerate(iter(validation_dataset)):
-            x = x.to(device)
-            y = y.to(device)
+        for x, y, parameters in validation_bar:
+            x: Tensor = x.to(device)
+            y: Tensor = y.to(device)
+            parameters: Tensor = parameters.to(device)
 
-            y_hat: Tensor = model(x.unsqueeze(0)).squeeze(0)
+            y_hat: Tensor = model(x, parameters)
 
             for validation_loss, validation_criterion in validation_criterions.items():
-                this_loss: Tensor = validation_criterion(
-                    y_hat.unsqueeze(0), y.unsqueeze(0))
+                this_loss: Tensor = validation_criterion(y_hat, y)
                 validation_losses[f'Validation Loss: {validation_loss}'] += this_loss.item(
                 )
 

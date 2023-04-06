@@ -20,7 +20,7 @@ PeakReductionValue = Literal[
     35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100
 ]
 DatasetFolder = Literal['Train', 'Test', 'Val']
-Partition = Literal['train', 'test', 'val']
+Partition = Literal['train', 'test', 'validation']
 
 param_dict: dict[
     tuple[SwitchValue, PeakReductionValue],
@@ -417,12 +417,12 @@ class SignalTrainDataset(AbstractSignalTrainDataset):
             data_path = dataset_root / 'Val'
 
         self.entries = []
+        print(f'Loading {partition} dataset.')
 
         for file in data_path.glob('*.wav'):
             if file.name.startswith('input'):
                 continue
             assert file.name.startswith('target')
-            print(f'Processing `{file}` ...')
             file_id = file.name[7:10]
             assert file_id.isnumeric()
             switch_value, peak_reduction_value = map(
@@ -439,7 +439,9 @@ class SignalTrainDataset(AbstractSignalTrainDataset):
                 self.entries.append((
                     input_data,
                     output_data,
-                    torch.tensor([switch_value, peak_reduction_value])
+                    torch.tensor([
+                        switch_value, peak_reduction_value
+                    ], dtype=torch.float32)
                 ))
 
     def __len__(self):

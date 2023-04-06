@@ -27,6 +27,7 @@ class PreEmphasisESRLoss(nn.Module):
         self.esr = ESRLoss()
 
     def forward(self, y_hat: Tensor, y: Tensor) -> Tensor:
+        assert y_hat.dim() == 2 and y.dim() == 2
         if self.pre_emphasis_filter:
             y_hat, y = self.pre_emphasis_filter(
                 y_hat.unsqueeze(1), y.unsqueeze(1))

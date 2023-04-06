@@ -91,19 +91,21 @@ class S4ConditionalSideChainModel(nn.Module):
 
     def __init__(
         self,
+        model_version: ModelVersion,
         control_parameter_mlp_depth: int,
         control_parameter_mlp_hidden_size: int,
-        side_chain_version: ModelVersion,
         film_take_batch_normalization: bool,
-        inner_audio_channel: int, s4_hidden_size: int,
+        inner_audio_channel: int,
+        s4_hidden_size: int,
         s4_learning_rate: float | None,
-        model_depth: int, activation: Activation,
+        side_chain_depth: int,
+        activation: Activation,
         convert_to_decibels: bool
     ):
-        if not side_chain_version in get_args(ModelVersion):
+        if not model_version in get_args(ModelVersion):
             raise ValueError(
                 f'Unsupported side chain version. '
-                f'Expect one of {get_args(ModelVersion)}, but got {side_chain_version}.'
+                f'Expect one of {get_args(ModelVersion)}, but got {model_version}.'
             )
         super().__init__()
 
@@ -125,7 +127,7 @@ class S4ConditionalSideChainModel(nn.Module):
         self.rearrange1 = Rearrange('B L -> B L 1')
         self.expansion = nn.Linear(1, inner_audio_channel)
 
-        if side_chain_version == 1:
+        if model_version == 1:
             Block = BlockV1
         else:
             Block = BlockV2
@@ -138,7 +140,7 @@ class S4ConditionalSideChainModel(nn.Module):
                 s4_hidden_size,
                 s4_learning_rate,
                 activation,
-            ) for _ in range(model_depth)
+            ) for _ in range(side_chain_depth)
         ])
 
         self.contraction = nn.Linear(inner_audio_channel, 1)

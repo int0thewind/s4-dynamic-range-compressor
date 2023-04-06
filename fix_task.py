@@ -22,14 +22,14 @@ from src.evaluation import (evaluate_rms_difference,
                             evaluate_waveform_difference)
 from src.loss import LossType, forge_loss_function_from
 from src.model import S4FixSideChainModel
-from src.parameter import FixTaskParameter
+from src.parameter import ConditionalTaskParameter
 from src.utils import clear_memory, current_utc_time, set_random_seed_to
 
 if __name__ != '__main__':
     raise RuntimeError(f'The main script cannot be imported by other module.')
 
 '''Script parameters.'''
-param = FixTaskParameter.parse_args()
+param = ConditionalTaskParameter.parse_args()
 pprint(param.to_dict())
 
 '''The preparatory work.'''

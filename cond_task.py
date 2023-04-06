@@ -12,31 +12,31 @@ from torch import Tensor
 from torch.cuda import is_available as cuda_is_available
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.optim import AdamW
-from torch.utils.data import ConcatDataset, DataLoader
+from torch.utils.data import DataLoader
 from torchinfo import summary as get_model_info_from
 from tqdm import tqdm
 
 from src.augmentation import invert_phase
-from src.dataset import FixDataset, download_signal_train_dataset_to
+from src.dataset import SignalTrainDataset, download_signal_train_dataset_to
 from src.evaluation import (evaluate_rms_difference,
                             evaluate_waveform_difference)
 from src.loss import LossType, forge_loss_function_from
-from src.model import S4FixSideChainModel
-from src.parameter import FixTaskParameter
+from src.model import S4ConditionalSideChainModel
+from src.parameter import ConditionalTaskParameter
 from src.utils import clear_memory, current_utc_time, set_random_seed_to
 
 if __name__ != '__main__':
     raise RuntimeError(f'The main script cannot be imported by other module.')
 
 '''Script parameters.'''
-param = FixTaskParameter.parse_args()
+param = ConditionalTaskParameter.parse_args()
 pprint(param.to_dict())
 
 '''The preparatory work.'''
 download_signal_train_dataset_to(param.dataset_dir)
 set_random_seed_to(param.random_seed)
 if not cuda_is_available():
-    raise RuntimeError(f'CUDA is not available. Aborting. ')
+    raise RuntimeError(f'CUDA is not available.')
 device = torch.device('cuda')
 job_name = current_utc_time()
 job_dir = (param.checkpoint_dir / job_name)
@@ -55,20 +55,25 @@ if param.log_wandb:
     )
 
 '''Prepare the dataset.'''
-dataset = ConcatDataset([
-    FixDataset(param.dataset_dir, 'train', param.data_segment_length),
-    FixDataset(param.dataset_dir, 'val', param.data_segment_length),
-])
-validation_dataset = FixDataset(param.dataset_dir, 'test', 30.0)
-dataloader = DataLoader(
-    dataset, param.batch_size,
+training_dataset = SignalTrainDataset(param.dataset_dir, 'train', 1.0)
+training_dataloader = DataLoader(
+    training_dataset, param.batch_size,
     shuffle=True, pin_memory=True,
-    collate_fn=validation_dataset.collate_fn,
+    collate_fn=training_dataset.collate_fn,
+)
+validation_dataset = SignalTrainDataset(param.dataset_dir, 'val', 30.0)
+validation_dataloader = DataLoader(
+    validation_dataset, param.batch_size,
+    shuffle=True, pin_memory=True,
+    collate_fn=training_dataset.collate_fn,
 )
 
 '''Prepare the model.'''
-model = forge_s4_fix_side_chain_model_by(
+model = S4ConditionalSideChainModel(
     param.model_version,
+    param.model_control_parameter_mlp_depth,
+    param.model_control_parameter_mlp_hidden_size,
+    param.model_film_take_batch_normalization,
     param.model_inner_audio_channel,
     param.model_s4_hidden_size,
     param.s4_learning_rate,
@@ -78,7 +83,7 @@ model = forge_s4_fix_side_chain_model_by(
 ).to(device)
 model_info = get_model_info_from(model, (
     param.batch_size,
-    int(param.data_segment_length * FixDataset.sample_rate)
+    int(param.data_segment_length * SignalTrainDataset.sample_rate)
 ))
 if param.save_checkpoint:
     if platform.system() == 'Linux':
@@ -113,22 +118,24 @@ for epoch in range(param.epoch):
     model.train()
     criterion.train()
     training_bar = tqdm(
-        dataloader,
+        training_dataloader,
         desc=f'Training. {epoch = }',
-        total=len(dataloader),
+        total=len(training_dataloader),
     )
 
-    for x, y, _ in training_bar:
+    for x, y, parameters in training_bar:
         x: Tensor
         y: Tensor
+        parameters: Tensor
         if torch.rand(1).item() < 0.5:
             x, y = invert_phase(x, y)  # Data augmentation
         x = x.to(device)
         y = y.to(device)
+        parameters = parameters.to(device)
 
         optimizer.zero_grad()
 
-        y_hat: Tensor = model(x)
+        y_hat: Tensor = model(x, parameters)
         loss: Tensor = criterion(y_hat, y)
 
         scaler.scale(loss).backward()  # type: ignore
@@ -138,13 +145,13 @@ for epoch in range(param.epoch):
         training_bar.set_postfix({'loss': loss.item()})
         training_loss += loss.item()
 
-    training_loss /= len(dataloader)
+    training_loss /= len(training_dataloader)
 
     clear_memory()
 
     validation_losses: defaultdict[str, float] = defaultdict(float)
-    validation_evaluation_values: defaultdict[str, float] = defaultdict(float)
-    validation_evaluation_plots: dict[str, Figure] = {}
+    # validation_evaluation_values: defaultdict[str, float] = defaultdict(float)
+    # validation_evaluation_plots: dict[str, Figure] = {}
     validation_audio: dict[str, wandb.Audio] = {}
     model.eval()
     criterion.eval()
@@ -163,34 +170,37 @@ for epoch in range(param.epoch):
                 validation_losses[f'Validation Loss: {validation_loss}'] += this_loss.item(
                 )
 
-            w_diff, w_val = evaluate_waveform_difference(y_hat, y, 'rms')
-            validation_evaluation_values['Waveform Difference RMS'] += w_val
+            # TODO: complete validation routine.
+            # w_diff, w_val = evaluate_waveform_difference(y_hat, y, 'rms')
+            # validation_evaluation_values['Waveform Difference RMS'] += w_val
 
-            rms_diff, rms_val = evaluate_rms_difference(y_hat, y, 'rms')
-            validation_evaluation_values['RMS Difference RMS'] += rms_val
+            # rms_diff, rms_val = evaluate_rms_difference(y_hat, y, 'rms')
+            # validation_evaluation_values['RMS Difference RMS'] += rms_val
 
-            if epoch >= 10 and epoch % 5 == 4:  # Only log plots when the model is stable.
-                # TODO: do table logging.
-                w_figure, w_ax = plt.subplots()
-                w_ax.plot(w_val)
-                validation_evaluation_plots[f'Epoch {epoch} Waveform Difference {i}'] = w_figure
+            # if epoch >= 10 and epoch % 5 == 4:  # Only log plots when the model is stable.
+            #     # TODO: do table logging.
+            #     w_figure, w_ax = plt.subplots()
+            #     w_ax.plot(w_val)
+            #     validation_evaluation_plots[f'Epoch {epoch} Waveform Difference {i}'] = w_figure
 
-                rms_figure, rms_ax = plt.subplots()
-                rms_ax.plot(rms_val)
-                validation_evaluation_plots[f'Epoch {epoch} RMS Difference {i}'] = rms_figure
+            #     rms_figure, rms_ax = plt.subplots()
+            #     rms_ax.plot(rms_val)
+            #     validation_evaluation_plots[f'Epoch {epoch} RMS Difference {i}'] = rms_figure
 
-                validation_audio[f'Epoch {epoch} Clip {i}'] = wandb.Audio(
-                    y_hat.detach().cpu().numpy(), validation_dataset.sample_rate)
+            #     validation_audio[f'Epoch {epoch} Clip {i}'] = wandb.Audio(
+            #         y_hat.detach().cpu().numpy(), validation_dataset.sample_rate)
 
     for k, v in list(validation_losses.items()):
         validation_losses[k] = v / len(validation_dataset)
-    for k, v in list(validation_evaluation_values.items()):
-        validation_evaluation_values[k] = v / len(validation_dataset)
+    # for k, v in list(validation_evaluation_values.items()):
+    #     validation_evaluation_values[k] = v / len(validation_dataset)
 
     if param.log_wandb:
         wandb.log({
             f'Training Loss: {param.loss}': training_loss,
-        } | validation_losses | validation_audio | validation_evaluation_plots | validation_evaluation_values)
+        } | validation_losses | validation_audio
+            # | validation_evaluation_plots | validation_evaluation_values
+        )
     if param.save_checkpoint:
         torch.save(model.state_dict(), job_dir / f'model-epoch-{epoch}.pth')
 

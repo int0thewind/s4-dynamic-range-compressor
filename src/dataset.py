@@ -303,7 +303,7 @@ def download_signal_train_dataset_to(root: os.PathLike):
     #     shutil.move(root / 'SignalTrain_LA2A_Dataset_1.1' / 'Val', root)
     #     (root / 'SignalTrain_LA2A_Dataset_1.1').unlink()
 
-    link = 'https://cmu.box.com/s/tc9pxbh6wax37ld25vf33w5ng1nnfsbq'
+    link = 'https://cmu.box.com/shared/static/tc9pxbh6wax37ld25vf33w5ng1nnfsbq.zip'
 
     if not isinstance(root, Path):
         root = Path(root)

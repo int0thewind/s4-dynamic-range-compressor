@@ -4,9 +4,9 @@ import torch.nn as nn
 from torch import Tensor
 
 from .activation import Activation, get_activation_type_from
-from .layer import DSSM, FiLM, Rearrange
+from .layer import DSSM, Amplitude, Decibel, FiLM, Rearrange
 
-SideChainVersion = Literal[1, 2]
+ModelVersion = Literal[1, 2]
 
 
 class BlockV1(nn.Module):
@@ -80,24 +80,30 @@ class BlockV2(nn.Module):
 
 
 class S4ConditionalSideChainModel(nn.Module):
-    side_chain: nn.Module
     control_parameter_mlp: nn.Sequential
+    decibel: Decibel | None
+    rearrange1: Rearrange
+    expansion: nn.Linear
+    side_chain_blocks: nn.ModuleList
+    contraction: nn.Linear
+    rearrange2: Rearrange
+    amplitude: Amplitude | None
 
     def __init__(
         self,
         control_parameter_mlp_depth: int,
         control_parameter_mlp_hidden_size: int,
-        side_chain_version: SideChainVersion,
+        side_chain_version: ModelVersion,
         film_take_batch_normalization: bool,
         inner_audio_channel: int, s4_hidden_size: int,
         s4_learning_rate: float | None,
         model_depth: int, activation: Activation,
         convert_to_decibels: bool
     ):
-        if not side_chain_version in get_args(SideChainVersion):
+        if not side_chain_version in get_args(ModelVersion):
             raise ValueError(
                 f'Unsupported side chain version. '
-                f'Expect one of {get_args(SideChainVersion)}, but got {side_chain_version}.'
+                f'Expect one of {get_args(ModelVersion)}, but got {side_chain_version}.'
             )
         super().__init__()
 
@@ -115,21 +121,40 @@ class S4ConditionalSideChainModel(nn.Module):
             *control_parameter_mlp_layers,
         )
 
-        Act = get_activation_type_from(activation)
+        self.decibel = Decibel() if convert_to_decibels else None
+        self.rearrange1 = Rearrange('B L -> B L 1')
+        self.expansion = nn.Linear(1, inner_audio_channel)
 
         if side_chain_version == 1:
-            Model = BlockV1
+            Block = BlockV1
         else:
-            Model = BlockV2
+            Block = BlockV2
 
-        self.side_chain = Model(
-            film_take_batch_normalization,
-            inner_audio_channel, s4_hidden_size,
-            s4_learning_rate,
-            model_depth, activation,
-            convert_to_decibels,
-        )
+        self.side_chain_blocks = nn.ModuleList([
+            Block(
+                control_parameter_mlp_hidden_size,
+                film_take_batch_normalization,
+                inner_audio_channel,
+                s4_hidden_size,
+                s4_learning_rate,
+                activation,
+            ) for _ in range(model_depth)
+        ])
+
+        self.contraction = nn.Linear(inner_audio_channel, 1)
+        self.rearrange2 = Rearrange('B L 1 -> B L')
+        self.amplitude = Amplitude() if convert_to_decibels else None
 
     def forward(self, x: Tensor, control_parameters: Tensor) -> Tensor:
         cond = self.control_parameter_mlp(control_parameters)
-        return x * self.side_chain(x, cond)
+        if self.decibel is not None:
+            x = self.decibel(x)
+        x = self.rearrange1(x)
+        x = self.expansion(x)
+        for block in self.side_chain_blocks:
+            x = block(x, cond)
+        x = self.contraction(x)
+        x = self.rearrange2(x)
+        if self.amplitude is not None:
+            x = self.amplitude(x)
+        return x

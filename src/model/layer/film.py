@@ -10,7 +10,7 @@ class FiLM(nn.Module):
     def __init__(
         self, feature_numbers: int,
         conditional_information_dimension: int,
-        take_batch_normalization: bool = False
+        take_batch_normalization: bool,
     ):
         super().__init__()
 

@@ -32,7 +32,7 @@ class FixTaskParameter(RootConfig):
 
     log_wandb: bool = True
     wandb_entity: str = 'int0thewind'
-    wandb_project_name: str = 'S4 Dynamic Range Compressor'
+    wandb_project_name: str = 'S4 Dynamic Range Compressor Fixed'
 
     save_checkpoint: bool = True
     checkpoint_dir: Path = Path('./experiment-result')
@@ -49,7 +49,7 @@ class ConditionalTaskParameter(RootConfig):
     learning_rate: float = 1e-3
     s4_learning_rate: float = 1e-3
     batch_size: int = 64
-    enable_gradient_scaling: bool = True
+    enable_gradient_scaling: bool = False
     enable_learning_rate_scheduler: bool = True
 
     model_control_parameter_mlp_depth: int = 2

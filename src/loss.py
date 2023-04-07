@@ -1,3 +1,4 @@
+from functools import reduce
 from typing import Literal, get_args
 
 import torch.nn as nn
@@ -8,8 +9,22 @@ from torch import Tensor
 
 __all__ = ['forge_loss_function_from']
 
-LossType = Literal['MAE', 'MSE', 'ESR',
-                   'ESR+DC', 'Multi-STFT', 'ESR+DC+Multi-STFT']
+LossType = Literal['MAE', 'MSE', 'ESR', 'DC', 'Multi-STFT',
+                   'ESR+DC', 'ESR+DC+Multi-STFT']
+
+
+class Sum(nn.Module):
+    losses: nn.ModuleList
+
+    def __init__(self, *losses: nn.Module):
+        super().__init__()
+        self.losses = nn.ModuleList(losses)
+
+    def forward(self, y_hat: Tensor, y: Tensor) -> Tensor:
+        return reduce(
+            lambda x, y: x + y,
+            (loss(y_hat, y) for loss in self.losses),
+        )
 
 
 class MAELoss(nn.Module):
@@ -18,7 +33,7 @@ class MAELoss(nn.Module):
 
 
 class PreEmphasisESRLoss(nn.Module):
-    def __init__(self, filter_coef: float | None) -> None:
+    def __init__(self, filter_coef: float | None):
         super().__init__()
         if filter_coef is not None and 0 < filter_coef < 1:
             self.pre_emphasis_filter = FIRFilter('hp', filter_coef, 44100)
@@ -34,27 +49,6 @@ class PreEmphasisESRLoss(nn.Module):
         return self.esr(y_hat, y)
 
 
-class EsrDcLoss(nn.Module):
-    def __init__(self, filter_coef: float) -> None:
-        super().__init__()
-        self.esr = PreEmphasisESRLoss(filter_coef)
-        self.dc = DCLoss()
-
-    def forward(self, y_hat: Tensor, y: Tensor) -> Tensor:
-        return self.esr(y_hat, y) + self.dc(y_hat, y)
-
-
-class EsrDcStftLoss(nn.Module):
-    def __init__(self, filter_coef: float) -> None:
-        super().__init__()
-        self.esr = PreEmphasisESRLoss(filter_coef)
-        self.dc = DCLoss()
-        self.stft = MultiResolutionSTFTLoss()
-
-    def forward(self, y_hat: Tensor, y: Tensor) -> Tensor:
-        return self.esr(y_hat, y) + self.dc(y_hat, y) + self.stft(y_hat, y)
-
-
 def forge_loss_function_from(loss_type: LossType, filter_coef: float) -> nn.Module:
     if not loss_type in get_args(LossType):
         raise ValueError(f'Unsupported loss type `{loss_type}`.')
@@ -64,8 +58,10 @@ def forge_loss_function_from(loss_type: LossType, filter_coef: float) -> nn.Modu
         return nn.MSELoss()
     if loss_type == 'ESR':
         return PreEmphasisESRLoss(filter_coef)
-    if loss_type == 'ESR+DC':
-        return EsrDcLoss(filter_coef)
+    if loss_type == 'DC':
+        return DCLoss()
     if loss_type == 'Multi-STFT':
         return MultiResolutionSTFTLoss()
-    return EsrDcStftLoss(filter_coef)
+    if loss_type == 'ESR+DC':
+        return Sum(PreEmphasisESRLoss(filter_coef), DCLoss())
+    return Sum(PreEmphasisESRLoss(filter_coef), DCLoss(), MultiResolutionSTFTLoss())

@@ -10,6 +10,7 @@ from torch import Tensor
 from torch.cuda import is_available as cuda_is_available
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.optim import AdamW
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from torchinfo import summary as get_model_info_from
 from tqdm import tqdm
@@ -24,9 +25,6 @@ from src.utils import clear_memory, current_utc_time, set_random_seed_to
 if __name__ != '__main__':
     raise RuntimeError(f'The main script cannot be imported by other module.')
 
-
-# TODO: consider adding learning rate scheduler
-# But firstly, how to deal with S4 custom learning rate?
 
 '''Script parameters.'''
 param = ConditionalTaskParameter.parse_args()
@@ -106,6 +104,11 @@ validation_criterions: dict[LossType, nn.Module] = {
 '''Prepare the optimizer'''
 optimizer = AdamW(model.parameters(), lr=param.learning_rate)
 
+'''Prepare the learning rate scheduler'''
+# TODO: how to deal with S4 custom learning rate?
+scheduler = ReduceLROnPlateau(optimizer, 'min', verbose=True) \
+    if param.enable_learning_rate_scheduler else None
+
 '''Prepare the gradient scaler'''
 scaler = GradScaler() if param.enable_gradient_scaling else None
 
@@ -179,6 +182,9 @@ for epoch in range(param.epoch):
 
     for k, v in list(validation_losses.items()):
         validation_losses[k] = v / len(validation_dataloader)
+
+    if scheduler is not None:
+        scheduler.step(validation_losses[f'Validation Loss: {param.loss}'])
 
     if param.log_wandb:
         wandb.log({

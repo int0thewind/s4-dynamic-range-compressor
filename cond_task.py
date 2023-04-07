@@ -5,6 +5,7 @@ from typing import get_args
 
 import torch
 import torch.nn as nn
+import wandb
 from torch import Tensor
 from torch.cuda import is_available as cuda_is_available
 from torch.cuda.amp.grad_scaler import GradScaler
@@ -13,7 +14,6 @@ from torch.utils.data import DataLoader
 from torchinfo import summary as get_model_info_from
 from tqdm import tqdm
 
-import wandb
 from src.augmentation import invert_phase
 from src.dataset import SignalTrainDataset, download_signal_train_dataset_to
 from src.loss import LossType, forge_loss_function_from
@@ -84,8 +84,7 @@ model = S4ConditionalSideChainModel(
 model_info = get_model_info_from(model, (
     (param.batch_size,
         int(param.data_segment_length * SignalTrainDataset.sample_rate)),
-    (param.batch_size, 2)
-
+    (param.batch_size, 2),
 ))
 if param.save_checkpoint:
     if platform.system() == 'Linux':
@@ -108,7 +107,7 @@ validation_criterions: dict[LossType, nn.Module] = {
 optimizer = AdamW(model.parameters(), lr=param.learning_rate)
 
 '''Prepare the gradient scaler'''
-scaler = GradScaler()
+scaler = GradScaler() if param.enable_gradient_scaling else None
 
 '''Training loop'''
 if param.log_wandb:
@@ -142,12 +141,16 @@ for epoch in range(param.epoch):
         y_hat: Tensor = model(side_chain, parameters)
         loss: Tensor = criterion(y_hat, y)
 
-        scaler.scale(loss).backward()  # type: ignore
-        scaler.step(optimizer)
-        scaler.update()
-
         training_bar.set_postfix({'loss': loss.item()})
         training_loss += loss.item()
+
+        if scaler is not None:
+            scaler.scale(loss).backward()  # type: ignore
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            loss.backward()
+            optimizer.step()
 
     training_loss /= len(training_dataloader)
 
@@ -171,9 +174,8 @@ for epoch in range(param.epoch):
             y_hat: Tensor = model(side_chain, parameters)
 
             for validation_loss, validation_criterion in validation_criterions.items():
-                this_loss: Tensor = validation_criterion(y_hat, y)
-                validation_losses[f'Validation Loss: {validation_loss}'] += this_loss.item(
-                )
+                loss: Tensor = validation_criterion(y_hat, y)
+                validation_losses[f'Validation Loss: {validation_loss}'] += loss.item()
 
     for k, v in list(validation_losses.items()):
         validation_losses[k] = v / len(validation_dataloader)

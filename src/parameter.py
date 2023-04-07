@@ -49,6 +49,7 @@ class ConditionalTaskParameter(RootConfig):
     learning_rate: float = 1e-3
     s4_learning_rate: float = 1e-3
     batch_size: int = 64
+    enable_gradient_scaling: bool = True
 
     model_control_parameter_mlp_depth: int = 2
     model_control_parameter_mlp_hidden_size: int = 32

@@ -1,16 +1,17 @@
 from functools import reduce
 from typing import Literal, get_args
 
+import torch
 import torch.nn as nn
 from auraloss.freq import MultiResolutionSTFTLoss
 from auraloss.perceptual import FIRFilter
 from auraloss.time import DCLoss, ESRLoss
 from torch import Tensor
 
-__all__ = ['forge_loss_function_from']
+__all__ = ['forge_loss_criterion_by', 'forge_validation_criterions_by']
 
 LossType = Literal['MAE', 'MSE', 'ESR', 'DC', 'Multi-STFT',
-                   'ESR+DC', 'ESR+DC+Multi-STFT']
+                   'ESR+DC', 'ESR+DC+Multi-STFT', 'MAE+Multi-STFT', 'MAE+ESR+DC+Multi-STFT']
 
 
 class Sum(nn.Module):
@@ -49,7 +50,7 @@ class PreEmphasisESRLoss(nn.Module):
         return self.esr(y_hat, y)
 
 
-def forge_loss_function_from(loss_type: LossType, filter_coef: float) -> nn.Module:
+def forge_loss_criterion_by(loss_type: LossType, filter_coef: float) -> nn.Module:
     if not loss_type in get_args(LossType):
         raise ValueError(f'Unsupported loss type `{loss_type}`.')
     if loss_type == 'MAE':
@@ -64,4 +65,17 @@ def forge_loss_function_from(loss_type: LossType, filter_coef: float) -> nn.Modu
         return MultiResolutionSTFTLoss()
     if loss_type == 'ESR+DC':
         return Sum(PreEmphasisESRLoss(filter_coef), DCLoss())
+    if loss_type == 'MAE+ESR+DC+Multi-STFT':
+        return Sum(PreEmphasisESRLoss(filter_coef), DCLoss(), MultiResolutionSTFTLoss(), MAELoss())
+    if loss_type == 'MAE+Multi-STFT':
+        return Sum(MultiResolutionSTFTLoss(), MAELoss())
     return Sum(PreEmphasisESRLoss(filter_coef), DCLoss(), MultiResolutionSTFTLoss())
+
+
+def forge_validation_criterions_by(filter_coef: float, device: torch.device) -> dict[LossType, nn.Module]:
+    return {
+        loss_type: forge_loss_criterion_by(
+            loss_type, filter_coef).eval().to(device)
+        for loss_type in get_args(LossType)
+        if '+' not in loss_type
+    }

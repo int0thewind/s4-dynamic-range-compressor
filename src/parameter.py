@@ -49,7 +49,6 @@ class ConditionalTaskParameter(RootConfig):
     learning_rate: float = 1e-3
     s4_learning_rate: float = 1e-3
     batch_size: int = 64
-    enable_gradient_scaling: bool = False
     enable_learning_rate_scheduler: bool = True
 
     model_control_parameter_mlp_depth: int = 2
@@ -62,7 +61,7 @@ class ConditionalTaskParameter(RootConfig):
     model_depth: int = 4
     model_convert_to_decibels: bool = False
 
-    loss: LossType = 'ESR+DC+Multi-STFT'
+    loss: LossType = 'MAE+ESR+DC+Multi-STFT'
     loss_filter_coef: float = 0.85
 
     log_wandb: bool = True

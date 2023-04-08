@@ -72,10 +72,12 @@ def forge_loss_criterion_by(loss_type: LossType, filter_coef: float) -> nn.Modul
     return Sum(PreEmphasisESRLoss(filter_coef), DCLoss(), MultiResolutionSTFTLoss())
 
 
-def forge_validation_criterions_by(filter_coef: float, device: torch.device) -> dict[LossType, nn.Module]:
+def forge_validation_criterions_by(
+    filter_coef: float, device: torch.device, *loss_to_keep: LossType,
+) -> dict[LossType, nn.Module]:
     return {
         loss_type: forge_loss_criterion_by(
             loss_type, filter_coef).eval().to(device)
         for loss_type in get_args(LossType)
-        if '+' not in loss_type
+        if '+' not in loss_type or loss_type in loss_to_keep
     }

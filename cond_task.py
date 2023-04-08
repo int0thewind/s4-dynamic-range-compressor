@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 import torch
 import wandb
 from torch import Tensor
@@ -35,17 +33,19 @@ if param.log_wandb:
     )
 
 '''Prepare the dataset.'''
-training_dataset = SignalTrainDataset(param.dataset_dir, 'train', 1.0)
+training_dataset = SignalTrainDataset(
+    param.dataset_dir, 'train', param.data_segment_length)
 training_dataloader = DataLoader(
     training_dataset, param.batch_size,
     shuffle=True, pin_memory=True,
     collate_fn=training_dataset.collate_fn,
 )
-validation_dataset = SignalTrainDataset(param.dataset_dir, 'validation', 3.0)
+validation_dataset = SignalTrainDataset(
+    param.dataset_dir, 'validation', param.data_segment_length * 3)
 validation_dataloader = DataLoader(
     validation_dataset, param.batch_size,
     shuffle=True, pin_memory=True,
-    collate_fn=training_dataset.collate_fn,
+    collate_fn=validation_dataset.collate_fn,
 )
 
 '''Prepare the model.'''
@@ -63,7 +63,7 @@ model = S4ConditionalSideChainModel(
 ).to(device)
 print_and_save_model_info(
     model,
-    ((param.batch_size, int(param.data_segment_length * SignalTrainDataset.sample_rate)),
+    ((param.batch_size, int(param.data_segment_length * training_dataset.sample_rate)),
      (param.batch_size, 2)),
     job_dir,
     param.save_checkpoint
@@ -73,7 +73,7 @@ print_and_save_model_info(
 criterion = forge_loss_criterion_by(
     param.loss, param.loss_filter_coef).to(device)
 validation_criterions = forge_validation_criterions_by(
-    param.loss_filter_coef, device)
+    param.loss_filter_coef, device, param.loss)
 
 '''Prepare the optimizer'''
 optimizer = AdamW(model.parameters(), lr=param.learning_rate)
@@ -125,7 +125,10 @@ for epoch in range(param.epoch):
 
     clear_memory()
 
-    validation_losses: defaultdict[str, float] = defaultdict(float)
+    validation_losses = {
+        f'Validation Loss: {validation_loss}': 0.0
+        for validation_loss in validation_criterions.keys()
+    }
     model.eval()
     criterion.eval()
     validation_bar = tqdm(

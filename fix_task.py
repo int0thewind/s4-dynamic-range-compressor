@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 import torch
 import wandb
 from torch import Tensor
@@ -67,7 +65,7 @@ print_and_save_model_info(
 criterion = forge_loss_criterion_by(
     param.loss, param.loss_filter_coef).to(device)
 validation_criterions = forge_validation_criterions_by(
-    param.loss_filter_coef, device)
+    param.loss_filter_coef, device, param.loss)
 
 '''Prepare the optimizer'''
 optimizer = AdamW(model.parameters(), lr=param.learning_rate)
@@ -110,7 +108,10 @@ for epoch in range(param.epoch):
 
     clear_memory()
 
-    validation_losses: defaultdict[str, float] = defaultdict(float)
+    validation_losses = {
+        f'Validation Loss: {validation_loss}': 0.0
+        for validation_loss in validation_criterions.keys()
+    }
     model.eval()
     criterion.eval()
 
@@ -123,10 +124,9 @@ for epoch in range(param.epoch):
             y_hat: Tensor = model(x.unsqueeze(0)).squeeze(0)
 
             for validation_loss, validation_criterion in validation_criterions.items():
-                this_loss: Tensor = validation_criterion(
+                loss: Tensor = validation_criterion(
                     y_hat.unsqueeze(0), y.unsqueeze(0))
-                validation_losses[f'Validation Loss: {validation_loss}'] += this_loss.item(
-                )
+                validation_losses[f'Validation Loss: {validation_loss}'] += loss.item()
 
     for k, v in list(validation_losses.items()):
         validation_losses[k] = v / len(validation_dataset)

@@ -15,16 +15,16 @@ class FixTaskParameter(RootConfig):
     dataset_dir: Path = Path('./data/SignalTrain')
     data_segment_length: float = 1.0
 
-    epoch: int = 75
+    epoch: int = 60
     learning_rate: float = 1e-3
     s4_learning_rate: float = 1e-3
     batch_size: int = 32
 
-    model_version: S4FixSideChainModelVersion = 3
+    model_version: S4FixSideChainModelVersion = 4
     model_inner_audio_channel: int = 16
     model_s4_hidden_size: int = 16
     model_activation: Activation = 'GELU'
-    model_depth: int = 2
+    model_depth: int = 4
     model_convert_to_decibels: bool = False
 
     loss: LossType = 'ESR+DC+Multi-STFT'

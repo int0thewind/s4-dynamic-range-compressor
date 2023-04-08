@@ -64,8 +64,7 @@ print_and_save_model_info(
     model,
     ((param.batch_size, int(param.data_segment_length * training_dataset.sample_rate)),
      (param.batch_size, 2)),
-    job_dir,
-    param.save_checkpoint
+    job_dir, param.save_checkpoint
 )
 
 '''Loss function'''

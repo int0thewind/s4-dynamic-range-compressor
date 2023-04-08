@@ -36,12 +36,13 @@ if param.log_wandb:
 dataset = ConcatDataset([
     FixDataset(param.dataset_dir, 'train', param.data_segment_length),
     FixDataset(param.dataset_dir, 'validation', param.data_segment_length),
-])
-validation_dataset = FixDataset(param.dataset_dir, 'test', 30.0)
+])  # Use the test dataset for validation since we don't need to test the model.
+validation_dataset = FixDataset(
+    param.dataset_dir, 'test', param.data_segment_length * 30)
 dataloader = DataLoader(
     dataset, param.batch_size,
     shuffle=True, pin_memory=True,
-    collate_fn=validation_dataset.collate_fn,
+    collate_fn=FixDataset.collate_fn,
 )
 
 '''Prepare the model.'''
@@ -57,8 +58,7 @@ model = S4FixSideChainModel(
 print_and_save_model_info(
     model,
     (param.batch_size, int(param.data_segment_length * FixDataset.sample_rate)),
-    job_dir,
-    param.save_checkpoint
+    job_dir, param.save_checkpoint
 )
 
 '''Loss function'''
@@ -78,7 +78,6 @@ for epoch in range(param.epoch):
 
     training_loss = 0.0
     model.train()
-    criterion.train()
     training_bar = tqdm(
         dataloader,
         desc=f'Training. {epoch = }',
@@ -113,19 +112,17 @@ for epoch in range(param.epoch):
         for validation_loss in validation_criterions.keys()
     }
     model.eval()
-    criterion.eval()
 
     with torch.no_grad():
         print(f'Validating. {epoch = }')
-        for i, (x, y, _) in enumerate(iter(validation_dataset)):
+        for x, y, _ in validation_dataset:
             x = x.to(device)
             y = y.to(device)
 
-            y_hat: Tensor = model(x.unsqueeze(0)).squeeze(0)
+            y_hat: Tensor = model(x.unsqueeze(0))
 
             for validation_loss, validation_criterion in validation_criterions.items():
-                loss: Tensor = validation_criterion(
-                    y_hat.unsqueeze(0), y.unsqueeze(0))
+                loss: Tensor = validation_criterion(y_hat, y.unsqueeze(0))
                 validation_losses[f'Validation Loss: {validation_loss}'] += loss.item()
 
     for k, v in list(validation_losses.items()):

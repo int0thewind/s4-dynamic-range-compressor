@@ -10,14 +10,14 @@ from src.dataset import FixDataset
 from src.loss import forge_loss_criterion_by, forge_validation_criterions_by
 from src.main_routine import do_preparatory_work, print_and_save_model_info
 from src.model import S4FixSideChainModel
-from src.parameter import ConditionalTaskParameter
+from src.parameter import FixTaskParameter
 from src.utils import clear_memory
 
 if __name__ != '__main__':
     raise RuntimeError(f'The main script cannot be imported by other module.')
 
 
-param = ConditionalTaskParameter.parse_args()
+param = FixTaskParameter.parse_args()
 
 job_dir, device = do_preparatory_work(
     param, param.dataset_dir, param.checkpoint_dir,

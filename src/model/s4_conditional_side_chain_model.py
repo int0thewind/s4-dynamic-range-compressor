@@ -13,7 +13,6 @@ ModelVersion = Literal[1, 2, 3]
 class BlockV1(nn.Module):
     def __init__(
         self, conditional_information_dimension: int,
-        film_take_batch_normalization: bool,
         inner_audio_channel: int, s4_hidden_size: int,
         s4_learning_rate: float | None,
         activation: Activation,
@@ -30,7 +29,6 @@ class BlockV1(nn.Module):
         self.film = FiLM(
             inner_audio_channel,
             conditional_information_dimension,
-            film_take_batch_normalization
         )
         self.act2 = Act()
 
@@ -53,7 +51,6 @@ class BlockV1(nn.Module):
 class BlockV2(nn.Module):
     def __init__(
         self, conditional_information_dimension: int,
-        film_take_batch_normalization: bool,
         inner_audio_channel: int, s4_hidden_size: int,
         s4_learning_rate: float | None,
         activation: Activation,
@@ -70,7 +67,6 @@ class BlockV2(nn.Module):
         self.film = FiLM(
             inner_audio_channel,
             conditional_information_dimension,
-            film_take_batch_normalization
         )
         self.act = Act()
 
@@ -89,7 +85,6 @@ class BlockV2(nn.Module):
 class BlockV3(nn.Module):
     def __init__(
         self, conditional_information_dimension: int,
-        film_take_batch_normalization: bool,
         inner_audio_channel: int, s4_hidden_size: int,
         s4_learning_rate: float | None,
         activation: Activation,
@@ -106,7 +101,6 @@ class BlockV3(nn.Module):
         self.film = FiLM(
             inner_audio_channel,
             conditional_information_dimension,
-            film_take_batch_normalization
         )
         self.act2 = Act()
 
@@ -137,7 +131,6 @@ class S4ConditionalSideChainModel(nn.Module):
         model_version: ModelVersion,
         control_parameter_mlp_depth: int,
         control_parameter_mlp_hidden_size: int,
-        film_take_batch_normalization: bool,
         inner_audio_channel: int,
         s4_hidden_size: int,
         s4_learning_rate: float | None,
@@ -179,7 +172,6 @@ class S4ConditionalSideChainModel(nn.Module):
         self.side_chain_blocks = nn.ModuleList([
             Block(
                 control_parameter_mlp_hidden_size,
-                film_take_batch_normalization,
                 inner_audio_channel,
                 s4_hidden_size,
                 s4_learning_rate,

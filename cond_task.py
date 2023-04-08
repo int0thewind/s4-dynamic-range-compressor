@@ -53,7 +53,6 @@ model = S4ConditionalSideChainModel(
     param.model_version,
     param.model_control_parameter_mlp_depth,
     param.model_control_parameter_mlp_hidden_size,
-    param.model_film_take_batch_normalization,
     param.model_inner_audio_channel,
     param.model_s4_hidden_size,
     param.s4_learning_rate,

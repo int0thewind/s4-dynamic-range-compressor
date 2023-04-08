@@ -53,7 +53,6 @@ class ConditionalTaskParameter(RootConfig):
 
     model_control_parameter_mlp_depth: int = 2
     model_control_parameter_mlp_hidden_size: int = 32
-    model_film_take_batch_normalization: bool = False
     model_version: S4ConditionalSideChainModelVersion = 1
     model_inner_audio_channel: int = 32
     model_s4_hidden_size: int = 8

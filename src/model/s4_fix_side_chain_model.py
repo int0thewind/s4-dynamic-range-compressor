@@ -46,14 +46,21 @@ class S4FixSideChainModel(nn.Module):
             nn.Linear(1, inner_audio_channel),
         ])
 
-        if model_version == 1:
-            layers.extend([
-                Act(),
-                Rearrange('B L H -> B H L'),
-                DSSM(inner_audio_channel, s4_hidden_size, lr=s4_learning_rate),
-                Rearrange('B H L -> B L H'),
-            ])
-            for _ in range(model_depth):
+        for _ in range(model_depth):
+            if model_version == 0:
+                layers.extend([
+                    nn.Linear(inner_audio_channel, inner_audio_channel),
+                    Act(),
+                ])
+            elif model_version == 1:
+                layers.extend([
+                    Rearrange('B L H -> B H L'),
+                    DSSM(inner_audio_channel, s4_hidden_size,
+                         lr=s4_learning_rate),
+                    Rearrange('B H L -> B L H'),
+                    Act(),
+                ])
+            elif model_version == 2:
                 layers.extend([
                     nn.Linear(inner_audio_channel, inner_audio_channel),
                     Act(),
@@ -62,14 +69,7 @@ class S4FixSideChainModel(nn.Module):
                          lr=s4_learning_rate),
                     Rearrange('B H L -> B L H'),
                 ])
-        elif model_version == 2:
-            layers.extend([
-                Rearrange('B L H -> B H L'),
-                DSSM(inner_audio_channel, s4_hidden_size, lr=s4_learning_rate),
-                Rearrange('B H L -> B L H'),
-                Act(),
-            ])
-            for _ in range(model_depth):
+            elif model_version == 3:
                 layers.extend([
                     nn.Linear(inner_audio_channel, inner_audio_channel),
                     Rearrange('B L H -> B H L'),
@@ -78,15 +78,7 @@ class S4FixSideChainModel(nn.Module):
                     Rearrange('B H L -> B L H'),
                     Act(),
                 ])
-        elif model_version == 3:
-            layers.extend([
-                Act(),
-                Rearrange('B L H -> B H L'),
-                DSSM(inner_audio_channel, s4_hidden_size, lr=s4_learning_rate),
-                Rearrange('B H L -> B L H'),
-                Act(),
-            ])
-            for _ in range(model_depth):
+            elif model_version == 4:
                 layers.extend([
                     nn.Linear(inner_audio_channel, inner_audio_channel),
                     Act(),
@@ -94,33 +86,6 @@ class S4FixSideChainModel(nn.Module):
                     DSSM(inner_audio_channel, s4_hidden_size,
                          lr=s4_learning_rate),
                     Rearrange('B H L -> B L H'),
-                    Act(),
-                ])
-        elif model_version == 4:
-            layers.extend([
-                Act(),
-                Rearrange('B L H -> B H L'),
-                DSSM(inner_audio_channel, s4_hidden_size, lr=s4_learning_rate),
-                Rearrange('B H L -> B L H'),
-                Act(),
-            ])
-            for _ in range(model_depth):
-                layers.extend([
-                    Rearrange('B L H -> B H L'),
-                    DSSM(inner_audio_channel, s4_hidden_size,
-                         lr=s4_learning_rate),
-                    Rearrange('B H L -> B L H'),
-                    Act(),
-                ])
-        else:
-            layers.extend([
-                Rearrange('B L  -> B L 1'),
-                nn.Linear(1, inner_audio_channel),
-                Act(),
-            ])
-            for _ in range(model_depth):
-                layers.extend([
-                    nn.Linear(inner_audio_channel, inner_audio_channel),
                     Act(),
                 ])
 

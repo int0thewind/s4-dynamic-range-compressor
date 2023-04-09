@@ -20,7 +20,7 @@ pipenv run python3 fix_task.py --model-activation sigmoid
 pipenv run python3 fix_task.py --model-activation ReLU
 
 # Test decibel conversion
-pipenv run python3 fix_task.py --model-convert-to-decibels False
+pipenv run python3 fix_task.py --model-convert-to-decibels True
 
 # Test loss function
 pipenv run python3 fix_task.py --loss MAE

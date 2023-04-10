@@ -28,11 +28,6 @@ class Sum(nn.Module):
         )
 
 
-class MAELoss(nn.Module):
-    def forward(self, y_hat: Tensor, y: Tensor) -> Tensor:
-        return (y_hat - y).abs().mean()
-
-
 class PreEmphasisESRLoss(nn.Module):
     def __init__(self, filter_coef: float | None):
         super().__init__()
@@ -54,7 +49,7 @@ def forge_loss_criterion_by(loss_type: LossType, filter_coef: float) -> nn.Modul
     if not loss_type in get_args(LossType):
         raise ValueError(f'Unsupported loss type `{loss_type}`.')
     if loss_type == 'MAE':
-        return MAELoss()
+        return nn.L1Loss()
     if loss_type == 'MSE':
         return nn.MSELoss()
     if loss_type == 'ESR':
@@ -66,9 +61,9 @@ def forge_loss_criterion_by(loss_type: LossType, filter_coef: float) -> nn.Modul
     if loss_type == 'ESR+DC':
         return Sum(PreEmphasisESRLoss(filter_coef), DCLoss())
     if loss_type == 'MAE+ESR+DC+Multi-STFT':
-        return Sum(PreEmphasisESRLoss(filter_coef), DCLoss(), MultiResolutionSTFTLoss(), MAELoss())
+        return Sum(PreEmphasisESRLoss(filter_coef), DCLoss(), MultiResolutionSTFTLoss(), nn.L1Loss())
     if loss_type == 'MAE+Multi-STFT':
-        return Sum(MultiResolutionSTFTLoss(), MAELoss())
+        return Sum(MultiResolutionSTFTLoss(), nn.L1Loss())
     return Sum(PreEmphasisESRLoss(filter_coef), DCLoss(), MultiResolutionSTFTLoss())
 
 

@@ -5,10 +5,11 @@ They shall be used as building blocks for those actual training modules.
 """
 
 from .amp import Amplitude
-from .db import Decibel
+from .db import Decibel, convert_to_decibel
 from .dssm import DSSM
 from .film import FiLM
 from .lssm import LSSM
 from .rearrange import Rearrange
 
-__all__ = ['DSSM', 'LSSM', 'Rearrange', 'Amplitude', 'Decibel', 'FiLM']
+__all__ = ['DSSM', 'LSSM', 'Rearrange', 'Amplitude',
+           'Decibel', 'convert_to_decibel', 'FiLM']

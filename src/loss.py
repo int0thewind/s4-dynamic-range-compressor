@@ -3,14 +3,14 @@ from typing import Literal, get_args
 
 import torch
 import torch.nn as nn
-from auraloss.freq import MultiResolutionSTFTLoss
+from auraloss.freq import MultiResolutionSTFTLoss, STFTLoss
 from auraloss.perceptual import FIRFilter
 from auraloss.time import DCLoss, ESRLoss
 from torch import Tensor
 
 __all__ = ['forge_loss_criterion_by', 'forge_validation_criterions_by']
 
-LossType = Literal['MAE', 'MSE', 'ESR', 'DC', 'Multi-STFT',
+LossType = Literal['MAE', 'MSE', 'ESR', 'DC', 'Multi-STFT', 'STFT',
                    'ESR+DC', 'ESR+DC+Multi-STFT', 'MAE+Multi-STFT', 'MAE+ESR+DC+Multi-STFT']
 
 
@@ -58,6 +58,8 @@ def forge_loss_criterion_by(loss_type: LossType, filter_coef: float) -> nn.Modul
         return DCLoss()
     if loss_type == 'Multi-STFT':
         return MultiResolutionSTFTLoss()
+    if loss_type == 'STFT':
+        return STFTLoss()
     if loss_type == 'ESR+DC':
         return Sum(PreEmphasisESRLoss(filter_coef), DCLoss())
     if loss_type == 'MAE+ESR+DC+Multi-STFT':

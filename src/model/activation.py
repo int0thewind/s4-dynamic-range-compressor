@@ -1,13 +1,13 @@
-from typing import Literal, Type, get_args
+from typing import Literal, get_args
 
 import torch.nn as nn
 
 __all__ = ['Activation', 'get_activation_type_from']
 
-Activation = Literal['tanh', 'sigmoid', 'GELU', 'ReLU', 'Identity']
+Activation = Literal['tanh', 'sigmoid', 'GELU', 'ReLU', 'Identity', 'PReLU']
 
 
-def get_activation_type_from(activation: Activation) -> Type[nn.Module]:
+def get_activation_type_from(activation: Activation) -> type[nn.Module]:
     if not activation in get_args(Activation):
         raise ValueError(
             f'Unsupported non-linear activation `{activation}`.'
@@ -21,4 +21,6 @@ def get_activation_type_from(activation: Activation) -> Type[nn.Module]:
         return nn.ReLU
     if activation == 'GELU':
         return nn.GELU
+    if activation == 'PReLU':
+        return nn.PReLU
     return nn.Identity

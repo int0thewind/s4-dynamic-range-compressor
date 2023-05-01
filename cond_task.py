@@ -136,12 +136,12 @@ for epoch in range(param.epoch):
     )
 
     with torch.no_grad():
-        for side_chain, y, parameters in validation_bar:
-            side_chain: Tensor = side_chain.to(device)
+        for x, y, parameters in validation_bar:
+            x: Tensor = x.to(device)
             y: Tensor = y.to(device)
             parameters: Tensor = parameters.to(device)
 
-            y_hat: Tensor = model(side_chain, parameters)
+            y_hat: Tensor = model(x, parameters)
 
             for validation_loss, validation_criterion in validation_criterions.items():
                 loss: Tensor = validation_criterion(y_hat, y)

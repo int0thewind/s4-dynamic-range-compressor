@@ -60,13 +60,13 @@ class DSSM(nn.Module):
         return K
 
     def register(self, name: str, tensor: Tensor, lr: float | None = None):
-        if lr is None or lr == 0.0:
+        if lr == 0.0:
             self.register_buffer(name, tensor)
         else:
             self.register_parameter(name, nn.Parameter(tensor))
 
-            optim = {'weight_decay': 0.0}
-            if lr is not None:
+            optim = {'weight_decay': 0.0}  # Never use weight decay
+            if lr is not None:  # Use custom learning rate when a learning rate is given
                 optim['lr'] = lr
             setattr(getattr(self, name), '_optim', optim)
 

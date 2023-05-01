@@ -42,5 +42,5 @@ pipenv run python3 fix_task.py --model-inner-audio-channel 16 --model-s4-hidden-
 pipenv run python3 fix_task.py --model-inner-audio-channel 16 --model-s4-hidden-size 32
 pipenv run python3 fix_task.py --model-inner-audio-channel 32 --model-s4-hidden-size 8
 pipenv run python3 fix_task.py --model-inner-audio-channel 32 --model-s4-hidden-size 16
-# 24 G memory is not sufficient for this!
+# 24 G GPU memory is not sufficient for this!
 # pipenv run python3 fix_task.py --model-inner-audio-channel 32 --model-s4-hidden-size 32

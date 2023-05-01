@@ -6,8 +6,6 @@ from torch import Tensor
 from .activation import Activation, get_activation_type_from
 from .layer import DSSM, Amplitude, Decibel, Rearrange
 
-ModelVersion = Literal[0, 1, 2, 3, 4]
-
 
 class S4ConiditionalModel(nn.Module):
     side_chain: nn.Module
@@ -19,7 +17,6 @@ class S4ConiditionalModel(nn.Module):
         s4_learning_rate: float | None,
         model_depth: int,
         activation: Activation,
-        convert_to_decibels: bool,
     ):
         if inner_audio_channel < 1:
             raise ValueError()
@@ -29,12 +26,9 @@ class S4ConiditionalModel(nn.Module):
             raise ValueError()
 
         super().__init__()
+        Act = get_activation_type_from(activation)
 
         layers: list[nn.Module] = []
-        if convert_to_decibels:
-            layers.append(Decibel())
-
-        Act = get_activation_type_from(activation)
 
         layers.extend([
             Rearrange('B L -> B L 1'),
@@ -48,9 +42,6 @@ class S4ConiditionalModel(nn.Module):
             nn.Linear(inner_audio_channel, 1),
             Rearrange('B L 1 -> B L')
         ])
-
-        if convert_to_decibels:
-            layers.append(Amplitude())
 
         self.side_chain = nn.Sequential(*layers)
 

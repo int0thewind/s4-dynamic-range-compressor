@@ -9,7 +9,7 @@ from .model import (Activation, S4ConditionalSideChainModelVersion,
 
 
 @dataclass
-class FixTaskParameter(RootConfig):
+class FixTaskSideChainParameter(RootConfig):
     random_seed: int = 42
 
     dataset_dir: Path = Path('./data/SignalTrain')
@@ -39,7 +39,7 @@ class FixTaskParameter(RootConfig):
 
 
 @dataclass
-class ConditionalTaskParameter(RootConfig):
+class ConditionalSideChainTaskParameter(RootConfig):
     random_seed: int = 42
 
     dataset_dir: Path = Path('./data/SignalTrain')
@@ -66,6 +66,35 @@ class ConditionalTaskParameter(RootConfig):
     log_wandb: bool = True
     wandb_entity: str = 'int0thewind'
     wandb_project_name: str = 'S4 Dynamic Range Compressor'
+
+    save_checkpoint: bool = True
+    checkpoint_dir: Path = Path('./experiment-result')
+
+
+@dataclass
+class ConditionalTaskParameter(RootConfig):
+    random_seed: int = 42
+
+    dataset_dir: Path = Path('./data/SignalTrain')
+    data_segment_length: float = 1.0
+
+    epoch: int = 100
+    learning_rate: float = 1e-3
+    s4_learning_rate: float = 1e-3
+    batch_size: int = 32
+
+    model_inner_audio_channel: int = 32
+    model_s4_hidden_size: int = 8
+    model_depth: int = 4
+    model_convert_to_decibels: bool = False
+    model_activation: Activation = 'PReLU'
+
+    loss: LossType = 'ESR+DC+Multi-STFT'
+    loss_filter_coef: float = 0.85
+
+    log_wandb: bool = True
+    wandb_entity: str = 'int0thewind'
+    wandb_project_name: str = 'S4 Dynamic Range Compressor Conditional'
 
     save_checkpoint: bool = True
     checkpoint_dir: Path = Path('./experiment-result')

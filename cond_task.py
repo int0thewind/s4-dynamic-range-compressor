@@ -2,23 +2,23 @@ import torch
 import wandb
 from torch import Tensor
 from torch.optim import AdamW
-from torch.utils.data import ConcatDataset, DataLoader
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from src.augmentation import invert_phase
-from src.dataset import FixDataset
+from src.dataset import SignalTrainDataset
 from src.loss import forge_loss_criterion_by, forge_validation_criterions_by
 from src.main_routine import do_preparatory_work, print_and_save_model_info
-from src.model import S4FixSideChainModel
-from src.parameter import FixTaskSideChainParameter
+from src.model import S4ConditionalModel
+from src.parameter import ConditionalTaskParameter
 from src.utils import clear_memory
 
 if __name__ != '__main__':
     raise RuntimeError(f'The main script cannot be imported by other module.')
 
 
-param = FixTaskSideChainParameter.parse_args()
-
+param = ConditionalTaskParameter.parse_args()
 job_dir, device = do_preparatory_work(
     param, param.dataset_dir, param.checkpoint_dir,
     param.random_seed, param.save_checkpoint
@@ -33,31 +33,33 @@ if param.log_wandb:
     )
 
 '''Prepare the dataset.'''
-dataset = ConcatDataset([
-    FixDataset(param.dataset_dir, 'train', param.data_segment_length),
-    FixDataset(param.dataset_dir, 'validation', param.data_segment_length),
-])  # Use the test dataset for validation since we don't need to test the model.
-validation_dataset = FixDataset(
-    param.dataset_dir, 'test', param.data_segment_length * 30)
-dataloader = DataLoader(
-    dataset, param.batch_size,
+training_dataset = SignalTrainDataset(
+    param.dataset_dir, 'train', param.data_segment_length)
+training_dataloader = DataLoader(
+    training_dataset, param.batch_size,
     shuffle=True, pin_memory=True,
-    collate_fn=FixDataset.collate_fn,
+    collate_fn=training_dataset.collate_fn,
+)
+validation_dataset = SignalTrainDataset(
+    param.dataset_dir, 'validation', param.data_segment_length * 3)
+validation_dataloader = DataLoader(
+    validation_dataset, param.batch_size,
+    shuffle=True, pin_memory=True,
+    collate_fn=validation_dataset.collate_fn,
 )
 
 '''Prepare the model.'''
-model = S4FixSideChainModel(
-    param.model_version,
+model = S4ConditionalModel(
     param.model_inner_audio_channel,
     param.model_s4_hidden_size,
     param.s4_learning_rate,
     param.model_depth,
     param.model_activation,
-    param.model_convert_to_decibels,
 ).to(device)
 print_and_save_model_info(
     model,
-    (param.batch_size, int(param.data_segment_length * FixDataset.sample_rate)),
+    ((param.batch_size, int(param.data_segment_length * training_dataset.sample_rate)),
+     (param.batch_size, 2)),
     job_dir, param.save_checkpoint
 )
 
@@ -70,6 +72,8 @@ validation_criterions = forge_validation_criterions_by(
 '''Prepare the optimizer'''
 optimizer = AdamW(model.parameters(), lr=param.learning_rate)
 
+'''Prepare the learning rate scheduler'''
+
 '''Training loop'''
 if param.log_wandb:
     wandb.watch(model, log='all')
@@ -78,23 +82,28 @@ for epoch in range(param.epoch):
 
     training_loss = 0.0
     model.train()
+    criterion.train()
     training_bar = tqdm(
-        dataloader,
+        training_dataloader,
         desc=f'Training. {epoch = }',
-        total=len(dataloader),
+        total=len(training_dataloader),
     )
 
-    for x, y, _ in training_bar:
-        x: Tensor
+    for side_chain, y, parameters in training_bar:
+        side_chain: Tensor
         y: Tensor
+        parameters: Tensor
+
         if torch.rand(1).item() < 0.5:
-            x, y = invert_phase(x, y)
-        x = x.to(device)
+            side_chain, y = invert_phase(side_chain, y)
+
+        side_chain = side_chain.to(device)
         y = y.to(device)
+        parameters = parameters.to(device)
 
         optimizer.zero_grad()
 
-        y_hat: Tensor = model(x)
+        y_hat: Tensor = model(side_chain, parameters)
         loss: Tensor = criterion(y_hat, y)
 
         training_bar.set_postfix({'loss': loss.item()})
@@ -103,7 +112,7 @@ for epoch in range(param.epoch):
         loss.backward()
         optimizer.step()
 
-    training_loss /= len(dataloader)
+    training_loss /= len(training_dataloader)
 
     clear_memory()
 
@@ -112,21 +121,27 @@ for epoch in range(param.epoch):
         for validation_loss in validation_criterions.keys()
     }
     model.eval()
+    criterion.eval()
+    validation_bar = tqdm(
+        validation_dataloader,
+        desc=f'Validating. {epoch = }',
+        total=len(validation_dataloader),
+    )
 
     with torch.no_grad():
-        print(f'Validating. {epoch = }')
-        for x, y, _ in validation_dataset:
-            x = x.to(device)
-            y = y.to(device)
+        for x, y, parameters in validation_bar:
+            x: Tensor = x.to(device)
+            y: Tensor = y.to(device)
+            parameters: Tensor = parameters.to(device)
 
-            y_hat: Tensor = model(x.unsqueeze(0))
+            y_hat: Tensor = model(x, parameters)
 
             for validation_loss, validation_criterion in validation_criterions.items():
-                loss: Tensor = validation_criterion(y_hat, y.unsqueeze(0))
+                loss: Tensor = validation_criterion(y_hat, y)
                 validation_losses[f'Validation Loss: {validation_loss}'] += loss.item()
 
     for k, v in list(validation_losses.items()):
-        validation_losses[k] = v / len(validation_dataset)
+        validation_losses[k] = v / len(validation_dataloader)
 
     if param.log_wandb:
         wandb.log({

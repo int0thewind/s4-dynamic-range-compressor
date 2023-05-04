@@ -1,14 +1,50 @@
 from typing import Literal, get_args
 
+import torch
 import torch.nn as nn
+from einops import rearrange
 from torch import Tensor
 
 from .activation import Activation, get_activation_type_from
-from .layer import DSSM, Amplitude, Decibel, Rearrange
+from .layer import DSSM, FiLM, Rearrange
 
 
-class S4ConiditionalModel(nn.Module):
-    side_chain: nn.Module
+class Blocks(nn.Module):
+    def __init__(
+            self,
+            inner_audio_channel: int,
+            s4_hidden_size: int,
+            s4_learning_rate: float | None,
+            conditional_information_dimension: int,
+            activation: Activation
+    ):
+        super().__init__()
+
+        Act = get_activation_type_from(activation)
+
+        self.linear = nn.Linear(inner_audio_channel, inner_audio_channel)
+        self.activation1 = Act()
+        self.s4 = DSSM(inner_audio_channel,
+                       s4_hidden_size, lr=s4_learning_rate)
+        self.film = FiLM(inner_audio_channel,
+                         conditional_information_dimension)
+        self.activation2 = Act()
+
+    def forward(self, x: Tensor, cond: Tensor) -> Tensor:
+        x_in = x
+        x = self.linear(x)
+        x = self.activation1(x)
+        x = rearrange(x, 'B L H -> B H L')
+        x = self.s4(x)
+        x = rearrange(x, 'B H L -> B L H')
+        x = self.film(x, cond)
+        x = self.activation2(x)
+        return x + x_in
+
+
+class S4ConditionalModel(nn.Module):
+    blocks: nn.ModuleList
+    control_parameter_mlp_layers: nn.Sequential
 
     def __init__(
         self,
@@ -26,24 +62,43 @@ class S4ConiditionalModel(nn.Module):
             raise ValueError()
 
         super().__init__()
-        Act = get_activation_type_from(activation)
 
-        layers: list[nn.Module] = []
+        self.control_parameter_mlp_layers = nn.Sequential(
+            nn.Linear(2, 16),
+            nn.ReLU(),
+            nn.Linear(16, 32),
+            nn.ReLU(),
+            nn.Linear(32, 32),
+            nn.ReLU()
+        )
 
-        layers.extend([
-            Rearrange('B L -> B L 1'),
-            nn.Linear(1, inner_audio_channel),
-        ])
+        self.expand = nn.Linear(1, inner_audio_channel)
 
+        self.blocks = nn.ModuleList()
         for _ in range(model_depth):
-            pass
+            self.blocks.append(
+                Blocks(
+                    inner_audio_channel,
+                    s4_hidden_size,
+                    s4_learning_rate,
+                    32,
+                    activation,
+                )
+            )
 
-        layers.extend([
-            nn.Linear(inner_audio_channel, 1),
-            Rearrange('B L 1 -> B L')
-        ])
+        self.contract = nn.Linear(inner_audio_channel, 1)
 
-        self.side_chain = nn.Sequential(*layers)
+    def forward(self, x: Tensor, param: Tensor) -> Tensor:
+        cond = self.control_parameter_mlp_layers(param)
 
-    def forward(self, x: Tensor) -> Tensor:
-        return x * self.side_chain(x)
+        x = rearrange(x, 'B H -> B H 1')
+        x = self.expand(x)
+
+        for block in self.blocks:
+            x = block(x, cond)
+
+        x = self.contract(x)
+        x = rearrange(x, 'B H 1 -> B H')
+
+        x = torch.tanh(x)
+        return x

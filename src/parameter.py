@@ -88,6 +88,7 @@ class ConditionalTaskParameter(RootConfig):
     model_depth: int = 4
     model_convert_to_decibels: bool = False
     model_activation: Activation = 'PReLU'
+    model_film_take_batchnorm: bool = True
 
     loss: LossType = 'ESR+DC+Multi-STFT'
     loss_filter_coef: float = 0.85

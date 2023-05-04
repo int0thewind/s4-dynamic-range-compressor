@@ -2,7 +2,6 @@ import torch
 import wandb
 from torch import Tensor
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -54,6 +53,7 @@ model = S4ConditionalModel(
     param.model_s4_hidden_size,
     param.s4_learning_rate,
     param.model_depth,
+    param.model_film_take_batchnorm,
     param.model_activation,
 ).to(device)
 print_and_save_model_info(
@@ -104,7 +104,7 @@ for epoch in range(param.epoch):
         optimizer.zero_grad()
 
         y_hat: Tensor = model(side_chain, parameters)
-        loss: Tensor = criterion(y_hat, y)
+        loss: Tensor = criterion(y_hat.unsqueeze(1), y.unsqueeze(1))
 
         training_bar.set_postfix({'loss': loss.item()})
         training_loss += loss.item()
@@ -137,7 +137,8 @@ for epoch in range(param.epoch):
             y_hat: Tensor = model(x, parameters)
 
             for validation_loss, validation_criterion in validation_criterions.items():
-                loss: Tensor = validation_criterion(y_hat, y)
+                loss: Tensor = validation_criterion(
+                    y_hat.unsqueeze(0), y.unsqueeze(0))
                 validation_losses[f'Validation Loss: {validation_loss}'] += loss.item()
 
     for k, v in list(validation_losses.items()):

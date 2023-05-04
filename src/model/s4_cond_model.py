@@ -11,12 +11,13 @@ from .layer import DSSM, FiLM, Rearrange
 
 class Blocks(nn.Module):
     def __init__(
-            self,
-            inner_audio_channel: int,
-            s4_hidden_size: int,
-            s4_learning_rate: float | None,
-            conditional_information_dimension: int,
-            activation: Activation
+        self,
+        inner_audio_channel: int,
+        s4_hidden_size: int,
+        s4_learning_rate: float | None,
+        conditional_information_dimension: int,
+        film_take_batchnorm: bool,
+        activation: Activation
     ):
         super().__init__()
 
@@ -27,7 +28,8 @@ class Blocks(nn.Module):
         self.s4 = DSSM(inner_audio_channel,
                        s4_hidden_size, lr=s4_learning_rate)
         self.film = FiLM(inner_audio_channel,
-                         conditional_information_dimension)
+                         conditional_information_dimension,
+                         film_take_batchnorm)
         self.activation2 = Act()
 
     def forward(self, x: Tensor, cond: Tensor) -> Tensor:
@@ -52,6 +54,7 @@ class S4ConditionalModel(nn.Module):
         s4_hidden_size: int,
         s4_learning_rate: float | None,
         model_depth: int,
+        take_batchnorm: bool,
         activation: Activation,
     ):
         if inner_audio_channel < 1:
@@ -82,6 +85,7 @@ class S4ConditionalModel(nn.Module):
                     s4_hidden_size,
                     s4_learning_rate,
                     32,
+                    take_batchnorm,
                     activation,
                 )
             )

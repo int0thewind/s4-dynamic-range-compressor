@@ -12,7 +12,7 @@ from torch.hub import download_url_to_file
 from torch.utils.data import Dataset
 
 __all__ = ['SwitchValue', 'PeakReductionValue',
-           'download_signal_train_dataset_to', 'FixDataset']
+           'download_signal_train_dataset_to', 'FixDataset', 'SignalTrainDataset']
 
 SwitchValue = Literal[0, 1]
 PeakReductionValue = Literal[

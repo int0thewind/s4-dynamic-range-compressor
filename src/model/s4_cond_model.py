@@ -38,7 +38,8 @@ class Blocks(nn.Module):
                                    bias=False)
 
     def forward(self, x: Tensor, cond: Tensor) -> Tensor:
-        x_in = x
+        x_res = x
+
         x = self.linear(x)
         x = self.activation1(x)
         x = rearrange(x, 'B L H -> B H L')
@@ -46,7 +47,12 @@ class Blocks(nn.Module):
         x = rearrange(x, 'B H L -> B L H')
         x = self.film(x, cond)
         x = self.activation2(x)
-        return x + self.res(x_in)
+
+        x_res = rearrange(x_res, 'B L H -> B H L')
+        x_res = self.res(x_res)
+        x_res = rearrange(x_res, 'B H L -> B L H')
+
+        return x + x_res
 
 
 class S4ConditionalModel(nn.Module):

@@ -31,6 +31,11 @@ class Blocks(nn.Module):
                          conditional_information_dimension,
                          film_take_batchnorm)
         self.activation2 = Act()
+        self.res = torch.nn.Conv1d(inner_audio_channel,
+                                   inner_audio_channel,
+                                   kernel_size=1,
+                                   groups=inner_audio_channel,
+                                   bias=False)
 
     def forward(self, x: Tensor, cond: Tensor) -> Tensor:
         x_in = x
@@ -41,7 +46,7 @@ class Blocks(nn.Module):
         x = rearrange(x, 'B H L -> B L H')
         x = self.film(x, cond)
         x = self.activation2(x)
-        return x + x_in
+        return x + self.res(x_in)
 
 
 class S4ConditionalModel(nn.Module):

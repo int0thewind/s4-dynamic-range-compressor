@@ -81,7 +81,7 @@ class ConditionalTaskParameter(RootConfig):
     epoch: int = 100
     learning_rate: float = 1e-3
     s4_learning_rate: float = 1e-3
-    batch_size: int = 32
+    batch_size: int = 80
 
     model_inner_audio_channel: int = 32
     model_s4_hidden_size: int = 8

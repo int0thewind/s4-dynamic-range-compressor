@@ -89,21 +89,21 @@ for epoch in range(param.epoch):
         total=len(training_dataloader),
     )
 
-    for side_chain, y, parameters in training_bar:
-        side_chain: Tensor
+    for x, y, parameters in training_bar:
+        x: Tensor
         y: Tensor
         parameters: Tensor
 
         if torch.rand(1).item() < 0.5:
-            side_chain, y = invert_phase(side_chain, y)
+            x, y = invert_phase(x, y)
 
-        side_chain = side_chain.to(device)
+        x = x.to(device)
         y = y.to(device)
         parameters = parameters.to(device)
 
         optimizer.zero_grad()
 
-        y_hat: Tensor = model(side_chain, parameters)
+        y_hat: Tensor = model(x, parameters)
         loss: Tensor = criterion(y_hat.unsqueeze(1), y.unsqueeze(1))
 
         training_bar.set_postfix({'loss': loss.item()})

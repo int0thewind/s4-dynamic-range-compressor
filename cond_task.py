@@ -48,14 +48,14 @@ validation_dataloader = DataLoader(
 )
 
 '''Prepare the model.'''
-model = S4ConditionalModel(
+model = torch.compile(S4ConditionalModel(
     param.model_inner_audio_channel,
     param.model_s4_hidden_size,
     param.s4_learning_rate,
     param.model_depth,
     param.model_film_take_batchnorm,
     param.model_activation,
-).to(device)
+).to(device))
 print_and_save_model_info(
     model,
     ((param.batch_size, int(param.data_segment_length * training_dataset.sample_rate)),
@@ -138,7 +138,7 @@ for epoch in range(param.epoch):
 
             for validation_loss, validation_criterion in validation_criterions.items():
                 loss: Tensor = validation_criterion(
-                    y_hat.unsqueeze(0), y.unsqueeze(0))
+                    y_hat.unsqueeze(1), y.unsqueeze(1))
                 validation_losses[f'Validation Loss: {validation_loss}'] += loss.item()
 
     for k, v in list(validation_losses.items()):

@@ -48,14 +48,14 @@ validation_dataloader = DataLoader(
 )
 
 '''Prepare the model.'''
-model = torch.compile(S4ConditionalModel(
+model = S4ConditionalModel(
     param.model_inner_audio_channel,
     param.model_s4_hidden_size,
     param.s4_learning_rate,
     param.model_depth,
     param.model_film_take_batchnorm,
     param.model_activation,
-).to(device))
+).to(device)
 print_and_save_model_info(
     model,
     ((param.batch_size, int(param.data_segment_length * training_dataset.sample_rate)),

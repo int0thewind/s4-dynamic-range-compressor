@@ -16,6 +16,7 @@ class BlockV1(nn.Module):
         inner_audio_channel: int, s4_hidden_size: int,
         s4_learning_rate: float | None,
         activation: Activation,
+        take_residual_connection: bool = False
     ):
         super().__init__()
         Act = get_activation_type_from(activation)
@@ -32,7 +33,13 @@ class BlockV1(nn.Module):
         )
         self.act2 = Act()
 
+        self.residual_connection = nn.Conv1d(
+            inner_audio_channel, inner_audio_channel, 1, bias=False, groups=inner_audio_channel
+        ) if take_residual_connection else None
+
     def forward(self, x: Tensor, conditional_information: Tensor) -> Tensor:
+        x_in = x
+
         x = self.linear(x)
 
         x = self.act1(x)
@@ -45,6 +52,9 @@ class BlockV1(nn.Module):
 
         x = self.act2(x)
 
+        if self.residual_connection:
+            x = x + self.residual_connection(x_in)
+
         return x
 
 
@@ -54,7 +64,7 @@ class BlockV2(nn.Module):
         inner_audio_channel: int, s4_hidden_size: int,
         s4_learning_rate: float | None,
         activation: Activation,
-
+        take_residual_connection: bool = False
     ):
         super().__init__()
         Act = get_activation_type_from(activation)
@@ -70,7 +80,13 @@ class BlockV2(nn.Module):
         )
         self.act = Act()
 
+        self.residual_connection = nn.Conv1d(
+            inner_audio_channel, inner_audio_channel, 1, bias=False, groups=inner_audio_channel
+        ) if take_residual_connection else None
+
     def forward(self, x: Tensor, conditional_information: Tensor) -> Tensor:
+        x_in = x
+
         x = rearrange(x, 'B L H -> B H L')
         x = self.s4(x)
         x = rearrange(x, 'B H L -> B L H')
@@ -78,6 +94,9 @@ class BlockV2(nn.Module):
         x = self.film(x, conditional_information)
 
         x = self.act(x)
+
+        if self.residual_connection:
+            x = x + self.residual_connection(x_in)
 
         return x
 
@@ -88,11 +107,12 @@ class BlockV3(nn.Module):
         inner_audio_channel: int, s4_hidden_size: int,
         s4_learning_rate: float | None,
         activation: Activation,
+        take_residual_connection: bool = False
     ):
         super().__init__()
         Act = get_activation_type_from(activation)
         self.linear = nn.Linear(inner_audio_channel, inner_audio_channel)
-        self.act1 = Act()
+        self.act = Act()
         self.s4 = DSSM(
             inner_audio_channel,
             s4_hidden_size,
@@ -102,9 +122,14 @@ class BlockV3(nn.Module):
             inner_audio_channel,
             conditional_information_dimension,
         )
-        self.act2 = Act()
+
+        self.residual_connection = nn.Conv1d(
+            inner_audio_channel, inner_audio_channel, 1, bias=False, groups=inner_audio_channel
+        ) if take_residual_connection else None
 
     def forward(self, x: Tensor, conditional_information: Tensor) -> Tensor:
+        x_in = x
+
         x = self.linear(x)
 
         x = rearrange(x, 'B L H -> B H L')
@@ -113,7 +138,10 @@ class BlockV3(nn.Module):
 
         x = self.film(x, conditional_information)
 
-        x = self.act1(x)
+        x = self.act(x)
+
+        if self.residual_connection:
+            x = x + self.residual_connection(x_in)
 
         return x
 
@@ -136,7 +164,10 @@ class S4ConditionalSideChainModel(nn.Module):
         s4_learning_rate: float | None,
         side_chain_depth: int,
         activation: Activation,
-        convert_to_decibels: bool
+        convert_to_decibels: bool,
+        film_take_batchnorm: bool,
+        take_residual_connection: bool,
+        take_tanh: bool,
     ):
         if not model_version in get_args(ModelVersion):
             raise ValueError(
@@ -147,13 +178,13 @@ class S4ConditionalSideChainModel(nn.Module):
 
         control_parameter_mlp_layers: list[nn.Module] = [
             nn.Linear(2, control_parameter_mlp_hidden_size),
-            nn.GELU(),
+            nn.ReLU(),
         ]
         for _ in range(control_parameter_mlp_depth):
             control_parameter_mlp_layers.extend([
                 nn.Linear(control_parameter_mlp_hidden_size,
                           control_parameter_mlp_hidden_size),
-                nn.GELU(),
+                nn.ReLU(),
             ])
         self.control_parameter_mlp = nn.Sequential(
             *control_parameter_mlp_layers,
@@ -181,9 +212,11 @@ class S4ConditionalSideChainModel(nn.Module):
 
         self.contraction = nn.Linear(inner_audio_channel, 1)
         self.amplitude = Amplitude() if convert_to_decibels else None
+        self.tanh = nn.Tanh() if take_tanh else None
 
     def forward(self, x: Tensor, control_parameters: Tensor) -> Tensor:
-        cond = self.control_parameter_mlp(control_parameters)
+        conditional_information = self.control_parameter_mlp(
+            control_parameters)
 
         if self.decibel is not None:
             side_chain = self.decibel(x)
@@ -194,7 +227,7 @@ class S4ConditionalSideChainModel(nn.Module):
         side_chain = self.expansion(side_chain)
 
         for block in self.side_chain_blocks:
-            side_chain = block(side_chain, cond)
+            side_chain = block(side_chain, conditional_information)
 
         side_chain = self.contraction(side_chain)
 

@@ -50,15 +50,25 @@ class ConditionalTaskParameter(RootConfig):
     batch_size: int = 32
     enable_learning_rate_scheduler: bool = True
 
+    # New in conditional task
     model_take_side_chain: bool = False
+
     model_inner_audio_channel: int = 32
-    model_s4_hidden_size: int = 8
+    model_s4_hidden_size: int = 4
     model_depth: int = 4
-    model_film_take_batchnorm: bool = True
+
+    # New in conditional task
+    model_film_take_batchnorm: bool = False
+
+    # New in conditional task
     model_take_residual_connection: bool = True
+
     model_convert_to_decibels: bool = False
-    model_take_tanh: bool = False
-    model_activation: Activation = 'GELU'
+
+    # New in conditional task
+    model_take_tanh: bool = True
+
+    model_activation: Activation = 'PReLU'
 
     loss: LossType = 'ESR+DC+Multi-STFT'
     loss_filter_coef: float = 0.85

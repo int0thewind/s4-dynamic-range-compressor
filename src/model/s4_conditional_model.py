@@ -38,7 +38,7 @@ class Block(nn.Module):
             bias=False
         ) if take_residual_connection else None
 
-    def forward(self, x: Tensor, cond: Tensor) -> Tensor:
+    def forward(self, x: Tensor, conditional_information: Tensor) -> Tensor:
         x_in = x
 
         x = rearrange(x, 'B H L -> B L H')
@@ -47,7 +47,7 @@ class Block(nn.Module):
 
         x = self.activation1(x)
         x = self.s4(x)
-        x = self.film(x, cond)
+        x = self.film(x, conditional_information)
         x = self.activation2(x)
 
         if self.residual_connection:
@@ -108,14 +108,14 @@ class S4ConditionalModel(nn.Module):
 
         self.take_side_chain = take_side_chain
 
-    def _pass_blocks(self, x: Tensor, cond: Tensor) -> Tensor:
+    def _pass_blocks(self, x: Tensor, conditional_information: Tensor) -> Tensor:
         x = rearrange(x, 'B H -> B H 1')
         if self.decibel:
             x = self.decibel(x)
         x = self.expand(x)
 
         for block in self.blocks:
-            x = block(x, cond)
+            x = block(x, conditional_information)
 
         x = self.contract(x)
         if self.amplitude:
@@ -127,9 +127,9 @@ class S4ConditionalModel(nn.Module):
 
         return x
 
-    def forward(self, x: Tensor, param: Tensor) -> Tensor:
-        cond = self.control_parameter_mlp(param)
-        out = self._pass_blocks(x, cond)
+    def forward(self, x: Tensor, parameters: Tensor) -> Tensor:
+        conditional_information = self.control_parameter_mlp(parameters)
+        out = self._pass_blocks(x, conditional_information)
 
         if self.take_side_chain:
             return x * out

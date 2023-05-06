@@ -22,8 +22,9 @@ class FiLM(nn.Module):
             feature_numbers, affine=False) if take_batchnorm else None
 
     def forward(self, x: Tensor, conditional_information: Tensor) -> Tensor:
-        cond = self.conditional_information_adaptor(conditional_information)
-        g, b = torch.chunk(cond, 2, dim=-1)
+        conditional_information = self.conditional_information_adaptor(
+            conditional_information)
+        g, b = torch.chunk(conditional_information, 2, dim=-1)
         g = rearrange(g, 'B H -> B H 1')
         b = rearrange(b, 'B H -> B H 1')
         if self.batchnorm:

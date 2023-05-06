@@ -12,7 +12,7 @@ class FixTaskParameter(RootConfig):
     random_seed: int = 42
 
     dataset_dir: Path = Path('./data/SignalTrain')
-    data_segment_length: float = 1.0
+    data_segment_length: float = 1.5
 
     epoch: int = 70
     learning_rate: float = 1e-3
@@ -20,12 +20,12 @@ class FixTaskParameter(RootConfig):
     batch_size: int = 64
 
     model_version: S4FixSideChainModelVersion = 4
-    model_take_side_chain: bool = True
+    model_take_side_chain: bool = False
     model_inner_audio_channel: int = 32
     model_s4_hidden_size: int = 4
     model_depth: int = 4
-    model_take_residual_connection: bool = False
-    model_convert_to_decibels: bool = False
+    model_take_residual_connection: bool = True
+    model_convert_to_decibels: bool = True
     model_take_tanh: bool = True
     model_activation: Activation = 'GELU'
 

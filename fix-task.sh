@@ -8,8 +8,10 @@
 # We just need to run the test again for the sake of completeness.
 pipenv run python3 fix_task.py
 
-# Remove residual connection
-pipenv run python3 fix_task.py --model-take-side-chain False
+# Take residual connection and tanh
+pipenv run python3 fix_task.py --model-take-side-chain True --model-take-tanh False
+pipenv run python3 fix_task.py --model-take-side-chain False --model-take-tanh True
+pipenv run python3 fix_task.py --model-take-side-chain True --model-take-tanh True
 
 # Test model version
 pipenv run python3 fix_task.py --model-version 0

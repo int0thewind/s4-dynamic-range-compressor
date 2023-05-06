@@ -32,12 +32,12 @@ if param.log_wandb:
     )
 
 '''Prepare the dataset.'''
-dataset = ConcatDataset([
+dataset = ConcatDataset((
     FixDataset(param.dataset_dir, 'train', param.data_segment_length),
     FixDataset(param.dataset_dir, 'validation', param.data_segment_length),
-])  # Use the test dataset for validation since we don't need to test the model.
+))  # Use the test dataset for validation since we don't need to test the model.
 validation_dataset = FixDataset(
-    param.dataset_dir, 'test', param.data_segment_length * 30)
+    param.dataset_dir, 'test', param.data_segment_length * 20)
 dataloader = DataLoader(
     dataset, param.batch_size,
     shuffle=True, pin_memory=True,
@@ -86,17 +86,17 @@ for epoch in range(param.epoch):
         total=len(dataloader),
     )
 
-    for out, y, _ in training_bar:
-        out: Tensor
+    for x, y, _ in training_bar:
+        x: Tensor
         y: Tensor
         if torch.rand(1).item() < 0.5:
-            out, y = invert_phase(out, y)
-        out = out.to(device)
+            x, y = invert_phase(x, y)
+        x = x.to(device)
         y = y.to(device)
 
         optimizer.zero_grad()
 
-        y_hat: Tensor = model(out)
+        y_hat: Tensor = model(x)
         loss: Tensor = criterion(y_hat.unsqueeze(1), y.unsqueeze(1))
 
         training_bar.set_postfix({'loss': loss.item()})
@@ -117,11 +117,11 @@ for epoch in range(param.epoch):
 
     with torch.no_grad():
         print(f'Validating. {epoch = }')
-        for out, y, _ in validation_dataset:
-            out = out.to(device).unsqueeze(0)
+        for x, y, _ in validation_dataset:
+            x = x.to(device).unsqueeze(0)
             y = y.to(device)
 
-            y_hat: Tensor = model(out)
+            y_hat: Tensor = model(x)
 
             for validation_loss, validation_criterion in validation_criterions.items():
                 loss: Tensor = validation_criterion(

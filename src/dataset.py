@@ -362,8 +362,7 @@ class FixDataset(AbstractSignalTrainDataset):
 
     def __init__(self, dataset_root: os.PathLike, partition: Partition, segment_length: float):
         if segment_length is not None and segment_length <= 0.0:
-            raise ValueError(
-                'The segment length must be a positive number smaller than 10.')
+            raise ValueError('The segment length must be a positive number.')
 
         if not isinstance(dataset_root, Path):
             dataset_root = Path(dataset_root)
@@ -401,8 +400,7 @@ class SignalTrainDataset(AbstractSignalTrainDataset):
 
     def __init__(self, dataset_root: os.PathLike, partition: Partition, segment_length: float):
         if segment_length is not None and segment_length <= 0.0:
-            raise ValueError(
-                'The segment length must be a positive number smaller than 10.')
+            raise ValueError('The segment length must be a positive number.')
 
         if not isinstance(dataset_root, Path):
             dataset_root = Path(dataset_root)

@@ -115,7 +115,7 @@ for epoch in range(param.epoch):
     with torch.no_grad():
         print(f'Validating. {epoch = }')
         for x, y, _ in validation_dataset:
-            x = x.to(device)
+            x = x.to(device).unsqueeze(0)
             y = y.to(device)
 
             y_hat: Tensor = model(x)

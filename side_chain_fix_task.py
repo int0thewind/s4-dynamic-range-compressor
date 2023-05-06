@@ -16,7 +16,6 @@ from src.utils import clear_memory
 if __name__ != '__main__':
     raise RuntimeError(f'The main script cannot be imported by other module.')
 
-
 param = FixTaskSideChainParameter.parse_args()
 
 job_dir, device = do_preparatory_work(
@@ -95,7 +94,7 @@ for epoch in range(param.epoch):
         optimizer.zero_grad()
 
         y_hat: Tensor = model(x)
-        loss: Tensor = criterion(y_hat, y)
+        loss: Tensor = criterion(y_hat.unsqueeze(1), y.unsqueeze(1))
 
         training_bar.set_postfix({'loss': loss.item()})
         training_loss += loss.item()
@@ -119,10 +118,11 @@ for epoch in range(param.epoch):
             x = x.to(device)
             y = y.to(device)
 
-            y_hat: Tensor = model(x.unsqueeze(0))
+            y_hat: Tensor = model(x)
 
             for validation_loss, validation_criterion in validation_criterions.items():
-                loss: Tensor = validation_criterion(y_hat, y.unsqueeze(0))
+                loss: Tensor = validation_criterion(
+                    y_hat.unsqueeze(1), y.unsqueeze(1))
                 validation_losses[f'Validation Loss: {validation_loss}'] += loss.item()
 
     for k, v in list(validation_losses.items()):

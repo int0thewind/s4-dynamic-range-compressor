@@ -17,13 +17,14 @@ class FixTaskSideChainParameter(RootConfig):
     epoch: int = 60
     learning_rate: float = 1e-3
     s4_learning_rate: float = 1e-3
-    batch_size: int = 32
+    batch_size: int = 64
 
+    model_take_side_chain: bool = True
     model_version: S4FixSideChainModelVersion = 4
-    model_inner_audio_channel: int = 16
-    model_s4_hidden_size: int = 16
-    model_activation: Activation = 'GELU'
+    model_inner_audio_channel: int = 32
+    model_s4_hidden_size: int = 4
     model_depth: int = 4
+    model_activation: Activation = 'GELU'
     model_convert_to_decibels: bool = False
 
     loss: LossType = 'ESR+DC+Multi-STFT'
@@ -50,24 +51,14 @@ class ConditionalTaskParameter(RootConfig):
     batch_size: int = 32
     enable_learning_rate_scheduler: bool = True
 
-    # New in conditional task
     model_take_side_chain: bool = False
-
     model_inner_audio_channel: int = 32
     model_s4_hidden_size: int = 4
     model_depth: int = 4
-
-    # New in conditional task
     model_film_take_batchnorm: bool = False
-
-    # New in conditional task
     model_take_residual_connection: bool = True
-
     model_convert_to_decibels: bool = False
-
-    # New in conditional task
     model_take_tanh: bool = True
-
     model_activation: Activation = 'PReLU'
 
     loss: LossType = 'ESR+DC+Multi-STFT'

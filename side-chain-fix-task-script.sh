@@ -8,6 +8,9 @@
 # We just need to run the test again for the sake of completeness.
 pipenv run python3 fix_task.py
 
+# Remove residual connection
+pipenv run python3 fix_task.py --model-take-side-chain False
+
 # Test model version
 pipenv run python3 fix_task.py --model-version 0
 pipenv run python3 fix_task.py --model-version 1
@@ -18,6 +21,7 @@ pipenv run python3 fix_task.py --model-version 3
 pipenv run python3 fix_task.py --model-activation tanh
 pipenv run python3 fix_task.py --model-activation sigmoid
 pipenv run python3 fix_task.py --model-activation ReLU
+pipenv run python3 fix_task.py --model-activation PReLU
 
 # Test decibel conversion
 pipenv run python3 fix_task.py --model-convert-to-decibels True
@@ -35,12 +39,14 @@ pipenv run python3 fix_task.py --model-depth 6
 
 # But finally, we still need to run the hidden size test.
 # The default audio channel number is 16 and s4 hidden size is 16.
+pipenv run python3 fix_task.py --model-inner-audio-channel 8 --model-s4-hidden-size 4
 pipenv run python3 fix_task.py --model-inner-audio-channel 8 --model-s4-hidden-size 8
 pipenv run python3 fix_task.py --model-inner-audio-channel 8 --model-s4-hidden-size 16
-pipenv run python3 fix_task.py --model-inner-audio-channel 8 --model-s4-hidden-size 32
+pipenv run python3 fix_task.py --model-inner-audio-channel 16 --model-s4-hidden-size 4
 pipenv run python3 fix_task.py --model-inner-audio-channel 16 --model-s4-hidden-size 8
+pipenv run python3 fix_task.py --model-inner-audio-channel 16 --model-s4-hidden-size 16
 pipenv run python3 fix_task.py --model-inner-audio-channel 16 --model-s4-hidden-size 32
+pipenv run python3 fix_task.py --model-inner-audio-channel 32 --model-s4-hidden-size 4
 pipenv run python3 fix_task.py --model-inner-audio-channel 32 --model-s4-hidden-size 8
 pipenv run python3 fix_task.py --model-inner-audio-channel 32 --model-s4-hidden-size 16
-# 24 G GPU memory is not sufficient for this!
-# pipenv run python3 fix_task.py --model-inner-audio-channel 32 --model-s4-hidden-size 32
+pipenv run python3 fix_task.py --model-inner-audio-channel 32 --model-s4-hidden-size 32

@@ -30,7 +30,7 @@ class Block(nn.Module):
                          conditional_information_dimension,
                          film_take_batchnorm)
         self.activation2 = Act()
-        self.residual_connection = torch.nn.Conv1d(
+        self.residual_connection = nn.Conv1d(
             inner_audio_channel,
             inner_audio_channel,
             kernel_size=1,
@@ -39,20 +39,18 @@ class Block(nn.Module):
         ) if take_residual_connection else None
 
     def forward(self, x: Tensor, conditional_information: Tensor) -> Tensor:
-        x_in = x
+        out = rearrange(x, 'B H L -> B L H')
+        out = self.linear(out)
+        out = rearrange(out, 'B L H -> B H L')
 
-        x = rearrange(x, 'B H L -> B L H')
-        x = self.linear(x)
-        x = rearrange(x, 'B L H -> B H L')
-
-        x = self.activation1(x)
-        x = self.s4(x)
-        x = self.film(x, conditional_information)
-        x = self.activation2(x)
+        out = self.activation1(out)
+        out = self.s4(out)
+        out = self.film(out, conditional_information)
+        out = self.activation2(out)
 
         if self.residual_connection:
-            return x + self.residual_connection(x_in)
-        return x
+            return out + self.residual_connection(x)
+        return out
 
 
 class S4ConditionalModel(nn.Module):
@@ -63,7 +61,7 @@ class S4ConditionalModel(nn.Module):
         s4_hidden_size: int,
         s4_learning_rate: float | None,
         model_depth: int,
-        film_take_batchnorm: bool,
+        film_take_batchnorm: bool,  # New parameter in conditional model
         take_residual_connection: bool,
         convert_to_decibels: bool,
         take_tanh: bool,

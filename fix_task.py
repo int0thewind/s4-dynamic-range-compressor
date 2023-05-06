@@ -9,7 +9,7 @@ from src.augmentation import invert_phase
 from src.dataset import FixDataset
 from src.loss import forge_loss_criterion_by, forge_validation_criterions_by
 from src.main_routine import do_preparatory_work, print_and_save_model_info
-from src.model import S4FixSideChainModel
+from src.model import S4FixModel
 from src.parameter import FixTaskParameter
 from src.utils import clear_memory
 
@@ -45,7 +45,7 @@ dataloader = DataLoader(
 )
 
 '''Prepare the model.'''
-model = S4FixSideChainModel(
+model = S4FixModel(
     param.model_version,
     param.model_take_side_chain,
     param.model_inner_audio_channel,

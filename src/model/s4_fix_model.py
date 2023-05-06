@@ -82,7 +82,7 @@ class Block(nn.Module):
         return out
 
 
-class S4FixSideChainModel(nn.Module):
+class S4FixModel(nn.Module):
     model: nn.Module
 
     def __init__(

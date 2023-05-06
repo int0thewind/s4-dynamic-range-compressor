@@ -24,38 +24,38 @@ class Block(nn.Module):
 
         layers: list[nn.Module] = []
         if model_version == 0:
-            layers.extend([
+            layers = [
                 nn.Linear(inner_audio_channel, inner_audio_channel),
                 Act(),
-            ])
+            ]
         elif model_version == 1:
-            layers.extend([
+            layers = [
                 Rearrange('B L H -> B H L'),
                 DSSM(inner_audio_channel, s4_hidden_size,
                      lr=s4_learning_rate),
                 Rearrange('B H L -> B L H'),
                 Act(),
-            ])
+            ]
         elif model_version == 2:
-            layers.extend([
+            layers = [
                 nn.Linear(inner_audio_channel, inner_audio_channel),
                 Act(),
                 Rearrange('B L H -> B H L'),
                 DSSM(inner_audio_channel, s4_hidden_size,
                      lr=s4_learning_rate),
                 Rearrange('B H L -> B L H'),
-            ])
+            ]
         elif model_version == 3:
-            layers.extend([
+            layers = [
                 nn.Linear(inner_audio_channel, inner_audio_channel),
                 Rearrange('B L H -> B H L'),
                 DSSM(inner_audio_channel, s4_hidden_size,
                      lr=s4_learning_rate),
                 Rearrange('B H L -> B L H'),
                 Act(),
-            ])
+            ]
         elif model_version == 4:
-            layers.extend([
+            layers = [
                 nn.Linear(inner_audio_channel, inner_audio_channel),
                 Act(),
                 Rearrange('B L H -> B H L'),
@@ -63,7 +63,7 @@ class Block(nn.Module):
                      lr=s4_learning_rate),
                 Rearrange('B H L -> B L H'),
                 Act(),
-            ])
+            ]
 
         self.model = nn.Sequential(*layers)
 
@@ -140,6 +140,8 @@ class S4FixSideChainModel(nn.Module):
 
         if convert_to_decibels:
             layers.append(Amplitude())
+        if take_tanh:
+            layers.append(nn.Tanh())
 
         self.model = nn.Sequential(*layers)
         self.take_side_chain = take_side_chain

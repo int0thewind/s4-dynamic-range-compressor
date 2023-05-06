@@ -8,24 +8,26 @@ from .model import Activation, S4FixSideChainModelVersion
 
 
 @dataclass
-class FixTaskSideChainParameter(RootConfig):
+class FixTaskParameter(RootConfig):
     random_seed: int = 42
 
     dataset_dir: Path = Path('./data/SignalTrain')
     data_segment_length: float = 1.0
 
-    epoch: int = 60
+    epoch: int = 70
     learning_rate: float = 1e-3
     s4_learning_rate: float = 1e-3
     batch_size: int = 64
 
-    model_take_side_chain: bool = True
     model_version: S4FixSideChainModelVersion = 4
+    model_take_side_chain: bool = True
     model_inner_audio_channel: int = 32
     model_s4_hidden_size: int = 4
     model_depth: int = 4
-    model_activation: Activation = 'GELU'
+    model_take_residual_connection: bool = False
     model_convert_to_decibels: bool = False
+    model_take_tanh: bool = True
+    model_activation: Activation = 'GELU'
 
     loss: LossType = 'ESR+DC+Multi-STFT'
     loss_filter_coef: float = 0.85
@@ -45,7 +47,7 @@ class ConditionalTaskParameter(RootConfig):
     dataset_dir: Path = Path('./data/SignalTrain')
     data_segment_length: float = 1.0
 
-    epoch: int = 60
+    epoch: int = 70
     learning_rate: float = 1e-3
     s4_learning_rate: float = 1e-3
     batch_size: int = 32

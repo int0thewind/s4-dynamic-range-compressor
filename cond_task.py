@@ -9,7 +9,7 @@ from src.augmentation import invert_phase
 from src.dataset import SignalTrainDataset
 from src.loss import forge_loss_criterion_by, forge_validation_criterions_by
 from src.main_routine import do_preparatory_work, print_and_save_model_info
-from src.model import S4ConditionalSingleChainModel
+from src.model import S4ConditionalModel
 from src.parameter import ConditionalTaskParameter
 from src.utils import clear_memory
 
@@ -48,12 +48,16 @@ validation_dataloader = DataLoader(
 )
 
 '''Prepare the model.'''
-model = S4ConditionalSingleChainModel(
+model = S4ConditionalModel(
+    param.model_take_side_chain,
     param.model_inner_audio_channel,
     param.model_s4_hidden_size,
     param.s4_learning_rate,
     param.model_depth,
     param.model_film_take_batchnorm,
+    param.model_take_residual_connection,
+    param.model_convert_to_decibels,
+    param.model_take_tanh,
     param.model_activation,
 ).to(device)
 print_and_save_model_info(
@@ -63,6 +67,9 @@ print_and_save_model_info(
     job_dir, param.save_checkpoint
 )
 
+'''EXPERIMENTAL: Try torch.compile'''
+# model = torch.compile(model)
+
 '''Loss function'''
 criterion = forge_loss_criterion_by(
     param.loss, param.loss_filter_coef).to(device)
@@ -71,8 +78,6 @@ validation_criterions = forge_validation_criterions_by(
 
 '''Prepare the optimizer'''
 optimizer = AdamW(model.parameters(), lr=param.learning_rate)
-
-'''Prepare the learning rate scheduler'''
 
 '''Training loop'''
 if param.log_wandb:

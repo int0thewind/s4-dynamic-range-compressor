@@ -26,11 +26,7 @@ class FiLM(nn.Module):
         g, b = torch.chunk(cond, 2, dim=-1)
         g = rearrange(g, 'B H -> B H 1')
         b = rearrange(b, 'B H -> B H 1')
-
-        x = rearrange(x, 'B L H -> B H L')
         if self.batchnorm:
             x = self.batchnorm(x)
         x = x * g + b
-        x = rearrange(x, 'B H L -> B L H')
-
         return x

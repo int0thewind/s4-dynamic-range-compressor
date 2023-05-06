@@ -1,11 +1,12 @@
 """The utility package."""
-
 import gc
 import random
 from datetime import datetime, timezone
 
 import numpy as np
 import torch
+import torch.backends.mps
+import torch.mps
 
 
 def set_random_seed_to(seed: int = 0):
@@ -18,11 +19,8 @@ def set_random_seed_to(seed: int = 0):
 def clear_memory():
     """Clear unused CPU or GPU memory. Supports MPS and CUDA."""
     gc.collect()
-    try:
-        if torch.mps.is_available():
-            torch.mps.empty_cache()
-    except AttributeError:
-        ...
+    if torch.backends.mps.is_available():
+        torch.mps.empty_cache()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
@@ -38,11 +36,8 @@ def get_tensor_device(apple_silicon: bool = True) -> torch.device:
         return torch.device('cuda')
 
     if apple_silicon:
-        try:
-            if torch.backends.mps.is_available():
-                return torch.device('mps')
-        except AttributeError:
-            ...
+        if torch.backends.mps.is_available():
+            return torch.device('mps')
 
     return torch.device('cpu')
 

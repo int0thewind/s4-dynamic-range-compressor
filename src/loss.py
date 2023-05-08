@@ -23,7 +23,7 @@ class Sum(nn.Module):
 
     def forward(self, y_hat: Tensor, y: Tensor) -> Tensor:
         return reduce(
-            lambda x, y: x + y,
+            lambda a, b: a + b,
             (loss(y_hat, y) for loss in self.losses),
         )
 

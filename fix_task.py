@@ -116,7 +116,7 @@ for epoch in range(param.epoch):
         print(f'Validating. {epoch = }')
         for x, y, _ in validation_dataset:
             x = x.to(device).unsqueeze(0)
-            y = y.to(device)
+            y = y.to(device).unsqueeze(0)
 
             y_hat: Tensor = model(x)
 

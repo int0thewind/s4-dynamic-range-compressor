@@ -67,12 +67,16 @@ class Block(nn.Module):
 
         self.model = nn.Sequential(*layers)
 
-        self.residual_connection = nn.Conv1d(
-            inner_audio_channel,
-            inner_audio_channel,
-            kernel_size=1,
-            groups=inner_audio_channel,
-            bias=False
+        self.residual_connection = nn.Sequential(
+            Rearrange('B L H -> B H L'),
+            nn.Conv1d(
+                inner_audio_channel,
+                inner_audio_channel,
+                kernel_size=1,
+                groups=inner_audio_channel,
+                bias=False
+            ),
+            Rearrange('B H L -> B L H'),
         ) if take_residual_connection else None
 
     def forward(self, x: Tensor) -> Tensor:

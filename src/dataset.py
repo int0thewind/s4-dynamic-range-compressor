@@ -379,9 +379,9 @@ class FixDataset(AbstractSignalTrainDataset):
                 dataset_root / self.input_file_179, segment_length)
             self.input_data.extend(self.slice_audio(
                 dataset_root / self.input_file_263, segment_length))
-            self.input_data = self.slice_audio(
+            self.output_data = self.slice_audio(
                 dataset_root / self.output_file_179, segment_length)
-            self.input_data.extend(self.slice_audio(
+            self.output_data.extend(self.slice_audio(
                 dataset_root / self.output_file_263, segment_length))
         else:
             self.input_data = self.slice_audio(

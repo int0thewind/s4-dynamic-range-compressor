@@ -10,6 +10,7 @@ from einops import rearrange
 from torch import Tensor
 from torch.hub import download_url_to_file
 from torch.utils.data import Dataset
+from tqdm.auto import tqdm
 
 __all__ = ['SwitchValue', 'PeakReductionValue',
            'download_signal_train_dataset_to', 'FixDataset', 'SignalTrainDataset']
@@ -20,7 +21,6 @@ PeakReductionValue = Literal[
     35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100
 ]
 DatasetFolder = Literal['Train', 'Test', 'Val']
-Partition = Literal['train', 'test', 'validation']
 
 param_dict: dict[
     tuple[SwitchValue, PeakReductionValue],
@@ -350,17 +350,22 @@ class AbstractSignalTrainDataset(ABC, Dataset):
 
 
 class FixDataset(AbstractSignalTrainDataset):
-    train_input_file = Path('Train') / 'input_179_.wav'
-    test_input_file = Path('Train') / 'input_221_.wav'
-    val_input_file = Path('Train') / 'input_263_.wav'
-    train_output_file = Path('Train') / 'target_179_LA2A_3c__1__100.wav'
-    test_output_file = Path('Train') / 'target_221_LA2A_3c__1__100.wav'
-    val_output_file = Path('Train') / 'target_263_LA2A_2c__1__100.wav'
+    input_file_179 = Path('Train') / 'input_179_.wav'  # 20 min
+    input_file_263 = Path('Train') / 'input_263_.wav'  # 15 min
+    input_file_221 = Path('Train') / 'input_221_.wav'  # 04 min
+    output_file_179 = Path('Train') / 'target_179_LA2A_3c__1__100.wav'
+    output_file_263 = Path('Train') / 'target_263_LA2A_2c__1__100.wav'
+    output_file_221 = Path('Train') / 'target_221_LA2A_3c__1__100.wav'
 
     input_data: list[Tensor]
     output_data: list[Tensor]
 
-    def __init__(self, dataset_root: os.PathLike, partition: Partition, segment_length: float):
+    def __init__(
+        self,
+        dataset_root: os.PathLike,
+        partition: Literal['train', 'validation'],
+        segment_length: float
+    ):
         if segment_length is not None and segment_length <= 0.0:
             raise ValueError('The segment length must be a positive number.')
 
@@ -370,17 +375,20 @@ class FixDataset(AbstractSignalTrainDataset):
         super().__init__()
 
         if partition == 'train':
-            input_file = dataset_root / self.train_input_file
-            output_file = dataset_root / self.train_output_file
-        elif partition == 'test':
-            input_file = dataset_root / self.test_input_file
-            output_file = dataset_root / self.test_output_file
+            self.input_data = self.slice_audio(
+                dataset_root / self.input_file_179, segment_length)
+            self.input_data.extend(self.slice_audio(
+                dataset_root / self.input_file_263, segment_length))
+            self.input_data = self.slice_audio(
+                dataset_root / self.output_file_179, segment_length)
+            self.input_data.extend(self.slice_audio(
+                dataset_root / self.output_file_263, segment_length))
         else:
-            input_file = dataset_root / self.val_input_file
-            output_file = dataset_root / self.val_output_file
+            self.input_data = self.slice_audio(
+                dataset_root / self.input_file_221, segment_length)
+            self.output_data = self.slice_audio(
+                dataset_root / self.output_file_221, segment_length)
 
-        self.input_data = self.slice_audio(input_file, segment_length)
-        self.output_data = self.slice_audio(output_file, segment_length)
         assert len(self.input_data) == len(self.output_data)
 
     def __len__(self):
@@ -398,7 +406,12 @@ class FixDataset(AbstractSignalTrainDataset):
 class SignalTrainDataset(AbstractSignalTrainDataset):
     entries: list[tuple[Tensor, Tensor, Tensor]]
 
-    def __init__(self, dataset_root: os.PathLike, partition: Partition, segment_length: float):
+    def __init__(
+        self,
+        dataset_root: os.PathLike,
+        partition: Literal['train', 'test', 'validation'],
+        segment_length: float
+    ):
         if segment_length is not None and segment_length <= 0.0:
             raise ValueError('The segment length must be a positive number.')
 
@@ -415,9 +428,9 @@ class SignalTrainDataset(AbstractSignalTrainDataset):
             data_path = dataset_root / 'Val'
 
         self.entries = []
-        print(f'Loading {partition} dataset.')
 
-        for file in data_path.glob('*.wav'):
+        all_files = sorted(data_path.glob('*.wav'))
+        for file in tqdm(all_files, desc=f'Loading {partition} dataset.'):
             if file.name.startswith('input'):
                 continue
             assert file.name.startswith('target')

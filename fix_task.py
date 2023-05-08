@@ -2,7 +2,7 @@ import torch
 import wandb
 from torch import Tensor
 from torch.optim import AdamW
-from torch.utils.data import ConcatDataset, DataLoader
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from src.augmentation import invert_phase
@@ -32,12 +32,9 @@ if param.log_wandb:
     )
 
 '''Prepare the dataset.'''
-dataset = ConcatDataset((
-    FixDataset(param.dataset_dir, 'train', param.data_segment_length),
-    FixDataset(param.dataset_dir, 'validation', param.data_segment_length),
-))  # Use the test dataset for validation since we don't need to test the model.
+dataset = FixDataset(param.dataset_dir, 'train', param.data_segment_length)
 validation_dataset = FixDataset(
-    param.dataset_dir, 'test', param.data_segment_length * 20)
+    param.dataset_dir, 'validation', param.data_segment_length * 20)
 dataloader = DataLoader(
     dataset, param.batch_size,
     shuffle=True, pin_memory=True,

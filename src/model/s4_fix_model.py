@@ -116,8 +116,6 @@ class S4FixModel(nn.Module):
         if convert_to_decibels:
             layers.append(Decibel())
 
-        Act = get_activation_type_from(activation)
-
         layers.extend([
             Rearrange('B L -> B L 1'),
             nn.Linear(1, inner_audio_channel),

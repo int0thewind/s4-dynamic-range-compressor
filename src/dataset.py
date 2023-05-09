@@ -433,15 +433,10 @@ class SignalTrainDataset(AbstractSignalTrainDataset):
         for file in tqdm(all_files, desc=f'Loading {partition} dataset.'):
             if file.name.startswith('input'):
                 continue
-            assert file.name.startswith('target')
             file_id = file.name[7:10]
-            assert file_id.isnumeric()
             switch_value, peak_reduction_value = map(
                 int, file.stem.split('__')[1:])
-            assert switch_value in get_args(SwitchValue)
-            assert peak_reduction_value in get_args(PeakReductionValue)
             input_file = file.with_name(f'input_{file_id}_.wav')
-            assert input_file.is_file()
 
             input_datas = self.slice_audio(input_file, segment_length)
             output_datas = self.slice_audio(file, segment_length)

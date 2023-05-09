@@ -107,15 +107,19 @@ class S4ConditionalModel(nn.Module):
         self.take_side_chain = take_side_chain
 
     def _pass_blocks(self, x: Tensor, conditional_information: Tensor) -> Tensor:
-        x = rearrange(x, 'B H -> B H 1')
+        x = rearrange(x, 'B L -> B L 1')
         if self.decibel:
             x = self.decibel(x)
+
         x = self.expand(x)
 
+        x = rearrange(x, 'B L H -> B H L')
         for block in self.blocks:
             x = block(x, conditional_information)
+        x = rearrange(x, 'B H L -> B L H')
 
         x = self.contract(x)
+
         if self.amplitude:
             x = self.amplitude(x)
         x = rearrange(x, 'B H 1 -> B H')

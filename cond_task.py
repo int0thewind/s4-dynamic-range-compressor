@@ -94,21 +94,21 @@ for epoch in range(param.epoch):
         total=len(training_dataloader),
     )
 
-    for out, y, parameters in training_bar:
-        out: Tensor
+    for x, y, parameters in training_bar:
+        x: Tensor
         y: Tensor
         parameters: Tensor
 
         if torch.rand(1).item() < 0.5:
-            out, y = invert_phase(out, y)
+            x, y = invert_phase(x, y)
 
-        out = out.to(device)
+        x = x.to(device)
         y = y.to(device)
         parameters = parameters.to(device)
 
         optimizer.zero_grad()
 
-        y_hat: Tensor = model(out, parameters)
+        y_hat: Tensor = model(x, parameters)
         loss: Tensor = criterion(y_hat.unsqueeze(1), y.unsqueeze(1))
 
         training_bar.set_postfix({'loss': loss.item()})
@@ -134,12 +134,12 @@ for epoch in range(param.epoch):
     )
 
     with torch.no_grad():
-        for out, y, parameters in validation_bar:
-            out: Tensor = out.to(device)
+        for x, y, parameters in validation_bar:
+            x: Tensor = x.to(device)
             y: Tensor = y.to(device)
             parameters: Tensor = parameters.to(device)
 
-            y_hat: Tensor = model(out, parameters)
+            y_hat: Tensor = model(x, parameters)
 
             for validation_loss, validation_criterion in validation_criterions.items():
                 loss: Tensor = validation_criterion(

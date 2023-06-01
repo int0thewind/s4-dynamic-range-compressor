@@ -1,10 +1,5 @@
 import torch
 import wandb
-from torch import Tensor
-from torch.optim import AdamW
-from torch.utils.data import DataLoader
-from tqdm import tqdm
-
 from src.augmentation import invert_phase
 from src.dataset import SignalTrainDataset
 from src.loss import forge_loss_criterion_by, forge_validation_criterions_by
@@ -12,6 +7,10 @@ from src.main_routine import do_preparatory_work, print_and_save_model_info
 from src.model import S4ConditionalModel
 from src.parameter import ConditionalTaskParameter
 from src.utils import clear_memory
+from torch import Tensor
+from torch.optim import AdamW
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 if __name__ != '__main__':
     raise ImportError(f'The main script cannot be imported by other module.')

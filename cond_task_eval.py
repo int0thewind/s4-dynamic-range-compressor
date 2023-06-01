@@ -10,7 +10,7 @@ from IPython.display import Audio, display
 from scipy.signal import freqz
 from torch import Tensor
 from torch.utils.data import DataLoader
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from src.dataset import SignalTrainDataset, download_signal_train_dataset_to
 from src.loss import forge_validation_criterions_by
@@ -28,8 +28,7 @@ CHECKPOINT_DIR = Path('./experiment-result')
 JOB_NAME = '2023-5-10-15-27-38'
 EPOCH = 66
 
-job_dir = CHECKPOINT_DIR / JOB_NAME
-job_eval_dir = job_dir / 'eval'
+job_eval_dir = CHECKPOINT_DIR / JOB_NAME / 'evaluations'
 device = get_tensor_device(apple_silicon=False)  # Some operations are not supported on Apple Silicon
 param = ConditionalTaskParameter.from_json(CHECKPOINT_DIR / JOB_NAME / 'config.json')
 # pprint(param.to_dict())
@@ -40,6 +39,11 @@ download_signal_train_dataset_to(DATASET_DIR)
 testing_dataset_short = SignalTrainDataset(DATASET_DIR, 'test', 1.5)
 testing_dataset_mid = SignalTrainDataset(DATASET_DIR, 'test', 4)
 testing_dataset_long = SignalTrainDataset(DATASET_DIR, 'test', 10)
+testing_datasets: list[tuple[str, SignalTrainDataset]] = [
+    ('short', testing_dataset_short),
+    ('mid', testing_dataset_mid),
+    ('long', testing_dataset_long),
+]
 
 model = S4ConditionalModel(
     param.model_take_side_chain,
@@ -58,7 +62,7 @@ model.load_state_dict(torch.load(CHECKPOINT_DIR / JOB_NAME / f'model-epoch-{EPOC
 
 @torch.no_grad()
 def test():
-    for dataset in [testing_dataset_short, testing_dataset_mid, testing_dataset_long]:
+    for dataset_name, dataset in testing_datasets:
         dataloader = DataLoader(dataset, 64, num_workers=8, pin_memory=True)
 
         validation_criterions = forge_validation_criterions_by(param.loss_filter_coef, device)
@@ -67,7 +71,9 @@ def test():
             for validation_loss in validation_criterions.keys()
         }
 
-        for x, y, parameters in tqdm(dataloader, desc='Testing', total=len(dataloader)):
+        for x, y, parameters in tqdm(
+            dataloader, desc=f'Testing {dataset_name} datset.', total=len(dataloader)
+        ):
             x: Tensor = x.to(device)
             y: Tensor = y.to(device)
             parameters: Tensor = parameters.to(device)
@@ -85,7 +91,11 @@ def test():
             pprint(validation_losses, stream=f)
             print('\n', file=f)
 
+
+print('Testing...')
 test()
+print('Testing is completed.')
+
 
 @torch.no_grad()
 def s4_frequency_response_analysis():
@@ -108,7 +118,11 @@ def s4_frequency_response_analysis():
             ax2.grid(True)
             fig.savefig(str(job_eval_dir / 's4-impulse-response' / f'{title}.png'))
 
+
+print('S4 frequency response analysis...')
 s4_frequency_response_analysis()
+print('S4 frequency response analysis is completed.')
+
 
 # @torch.no_grad()
 # def evaluate_inference_efficiency():
@@ -140,24 +154,33 @@ s4_frequency_response_analysis()
 
 # evaluate_inference_efficiency()
 
-@torch.no_grad()
-def evaluate_output_audio():
-    x, y, cond = testing_dataset.collate_fn([testing_dataset[i] for i in TESTING_DATASET_SAMPLE_INDEX])
-    x = x.to(device)
-    y = y.to(device)
-    cond = cond.to(device)
-    
-    y_hat: Tensor = model(y, cond)
-    
-    for x_audio, y_audio, y_hat_audio, cond_data in zip(
-        x.split(1), y.split(1), y_hat.split(1), cond.split(1),
-    ):
-        switch, peak_reduction = cond_data.flatten().cpu().tolist()
-        display(f'Switch value: {switch}, Peak reduction value: {peak_reduction}')
-        display(Audio(x_audio.flatten().cpu().numpy(), rate=testing_dataset.sample_rate, normalize=False))
-        display(Audio(y_audio.flatten().cpu().numpy(), rate=testing_dataset.sample_rate, normalize=False))
-        display(f'y-audio peak {y_audio.max(), y_audio.min()}')
-        display(Audio(y_hat_audio.flatten().cpu().numpy(), rate=testing_dataset.sample_rate, normalize=False))
-        display(f'y-hat-audio peak {y_hat_audio.max(), y_hat_audio.min()}')
+# @torch.no_grad()
+# def evaluate_output_audio():
+#     # Audio output, waveform difference, RMS difference and STFT difference
+#     for dataset_name, dataset in testing_datasets:
+#         dataloader = DataLoader(dataset, 64, num_workers=8, pin_memory=True)
+#         output_dir = job_eval_dir / f'output-audio-{dataset_name}'
+#         for x, y, cond in tqdm(dataloader, desc=f'Evaluate {dataset_name} dataset.', total=len(dataloader)):
+#             x: Tensor = x.to(device)
+#             y: Tensor = y.to(device)
+#             cond: Tensor = cond.to(device)
+            
+#             y_hat: Tensor = model(y, cond)
+            
+#             for i in range(y_hat.size(0)):
+#                 x_audio = x[i, :]
+#                 y_audio = y[i, :]
+#                 y_hat_audio = y_hat[i, :]
+#                 switch, peak_reduction = cond[i, :].flatten().cpu().tolist()
 
-evaluate_output_audio()
+#                 file_prefix = f'{dataset_name}-{i}'
+#                 display(f'Switch value: {switch}, Peak reduction value: {peak_reduction}')
+#                 display(Audio(x_audio.flatten().cpu().numpy(), rate=testing_dataset.sample_rate, normalize=False))
+#                 display(Audio(y_audio.flatten().cpu().numpy(), rate=testing_dataset.sample_rate, normalize=False))
+#                 display(f'y-audio peak {y_audio.max(), y_audio.min()}')
+#                 display(Audio(y_hat_audio.flatten().cpu().numpy(), rate=testing_dataset.sample_rate, normalize=False))
+#                 display(f'y-hat-audio peak {y_hat_audio.max(), y_hat_audio.min()}')
+
+# print('Evaluate output audio...')
+# evaluate_output_audio()
+# print('Evaluate output audio is completed.')

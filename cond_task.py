@@ -1,4 +1,9 @@
 import torch
+from torch import Tensor
+from torch.optim import AdamW
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
 import wandb
 from src.augmentation import invert_phase
 from src.dataset import SignalTrainDataset
@@ -7,10 +12,6 @@ from src.main_routine import do_preparatory_work, print_and_save_model_info
 from src.model import S4ConditionalModel
 from src.parameter import ConditionalTaskParameter
 from src.utils import clear_memory
-from torch import Tensor
-from torch.optim import AdamW
-from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 if __name__ != '__main__':
     raise ImportError(f'The main script cannot be imported by other module.')
@@ -58,6 +59,7 @@ model = S4ConditionalModel(
     param.model_convert_to_decibels,
     param.model_take_tanh,
     param.model_activation,
+    param.model_take_parametered_tanh,
 ).to(device)
 print_and_save_model_info(
     model,

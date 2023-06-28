@@ -3,7 +3,7 @@ import torch.nn as nn
 from einops import rearrange
 from torch import Tensor
 
-from .activation import Activation, get_activation_type_from
+from .activation import Activation, PTanh, get_activation_type_from
 from .layer import DSSM, Amplitude, Decibel, FiLM
 
 
@@ -66,6 +66,7 @@ class S4ConditionalModel(nn.Module):
         convert_to_decibels: bool,
         take_tanh: bool,
         activation: Activation,
+        take_parametered_tanh: bool = False,
     ):
         if inner_audio_channel < 1:
             raise ValueError(
@@ -102,7 +103,13 @@ class S4ConditionalModel(nn.Module):
         self.contract = nn.Linear(inner_audio_channel, 1)
         self.amplitude = Amplitude() if convert_to_decibels else None
 
-        self.tanh = nn.Tanh() if take_tanh else None
+        if take_tanh:
+            if take_parametered_tanh:
+                self.tanh = PTanh()
+            else:
+                self.tanh = nn.Tanh()    
+        else:
+            self.tanh = None
 
         self.take_side_chain = take_side_chain
 
@@ -125,7 +132,7 @@ class S4ConditionalModel(nn.Module):
         x = rearrange(x, 'B H 1 -> B H')
 
         if self.tanh:
-            x = torch.tanh(x)
+            x = self.tanh(x)
 
         return x
 

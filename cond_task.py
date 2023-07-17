@@ -1,10 +1,12 @@
+from pprint import pprint
+
 import torch
+import wandb
 from torch import Tensor
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-import wandb
 from src.augmentation import invert_phase
 from src.dataset import SignalTrainDataset
 from src.loss import forge_loss_criterion_by, forge_validation_criterions_by
@@ -150,10 +152,11 @@ for epoch in range(param.epoch):
     for k, v in list(validation_losses.items()):
         validation_losses[k] = v / len(validation_dataloader)
 
-    if param.log_wandb:
-        wandb.log({
-            f'Training Loss: {param.loss}': training_loss,
-        } | validation_losses)
+    logs = {
+        f'Training Loss: {param.loss}': training_loss,
+    } | validation_losses
+    wandb.log(logs) if param.log_wandb else pprint(logs)
+
     if param.save_checkpoint:
         torch.save(model.state_dict(), job_dir / f'model-epoch-{epoch}.pth')
 

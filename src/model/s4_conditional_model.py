@@ -67,6 +67,7 @@ class S4ConditionalModel(nn.Module):
         take_tanh: bool,
         activation: Activation,
         take_parametered_tanh: bool = False,
+        convert_to_amplitude: bool | None = None,
     ):
         if inner_audio_channel < 1:
             raise ValueError(
@@ -101,7 +102,11 @@ class S4ConditionalModel(nn.Module):
             activation,
         ) for _ in range(model_depth)])
         self.contract = nn.Linear(inner_audio_channel, 1)
-        self.amplitude = Amplitude() if convert_to_decibels else None
+
+        if convert_to_amplitude is None:
+            self.amplitude = Amplitude() if convert_to_decibels else None
+        else:
+            self.amplitude = Amplitude() if convert_to_amplitude else None
 
         if take_tanh:
             if take_parametered_tanh:

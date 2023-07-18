@@ -60,6 +60,7 @@ class ConditionalTaskParameter(RootConfig):
     model_film_take_batchnorm: bool = True
     model_take_residual_connection: bool = True
     model_convert_to_decibels: bool = False
+    model_convert_to_amplitude: bool = False
     model_take_tanh: bool = False
     model_take_parametered_tanh: bool = False
     model_activation: Activation = 'PReLU'

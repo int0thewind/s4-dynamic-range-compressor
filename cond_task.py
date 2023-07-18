@@ -62,6 +62,7 @@ model = S4ConditionalModel(
     param.model_take_tanh,
     param.model_activation,
     param.model_take_parametered_tanh,
+    param.model_convert_to_amplitude,
 ).to(device)
 print_and_save_model_info(
     model,

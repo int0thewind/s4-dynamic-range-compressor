@@ -34,7 +34,7 @@ if param.log_wandb:
 '''Prepare the dataset.'''
 dataset = FixDataset(param.dataset_dir, 'train', param.data_segment_length)
 validation_dataset = FixDataset(
-    param.dataset_dir, 'validation', param.data_segment_length * 20)
+    param.dataset_dir, 'validation', param.data_segment_length * 30)
 dataloader = DataLoader(
     dataset, param.batch_size,
     shuffle=True, pin_memory=True,

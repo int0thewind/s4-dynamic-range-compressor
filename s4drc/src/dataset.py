@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Generic, Literal, TypedDict, TypeVar
+from typing import Callable, Generic, Literal, TypedDict, TypeVar
 from zipfile import ZipFile
 
 import pytorch_lightning as pl
@@ -276,14 +276,21 @@ param_dict: dict[
                 'input_263_.wav',
                 'target_263_LA2A_2c__1__100.wav')]}
     
+
 T = TypeVar('T')
+
+
 class SequenceDataset(Dataset, Generic[T]):
-    def __init__(self, entries: Sequence[T]) -> None:
+    def __init__(self, entries: Sequence[T], transform: Callable[[T], T] | None = None) -> None:
         super().__init__()
         self.entries = entries
+        self.transform = transform
 
-    def __getitem__(self, index):
-        return self.entries[index]
+    def __getitem__(self, index: int):
+        ret = self.entries[index]
+        if self.transform:
+            ret = self.transform(ret)
+        return ret
     
     def __len__(self):
         return len(self.entries)
@@ -295,7 +302,7 @@ class SignalTrainDatasetModuleParams(TypedDict):
     segment_length: float
     
 
-class SignalTrainDataModule(pl.LightningDataModule):
+class SignalTrainDatasetModule(pl.LightningDataModule):
     sample_rate = 44_100
 
     hparams: SignalTrainDatasetModuleParams
@@ -373,6 +380,16 @@ class SignalTrainDataModule(pl.LightningDataModule):
             torch.stack([b[2] for b in batch]),
         )
     
+    
+    @staticmethod
+    def _data_augmentation(entry: tuple[Tensor, Tensor, Tensor]):
+        x, y, cond = entry
+        if torch.rand([1]).item() < 0.5:
+            x *= -1
+            y *= -1
+        return x, y, cond
+
+
     @classmethod
     def _slice_audio(cls, file: Path, segment_length: float) -> list[Tensor]:
         load_result: tuple[Tensor, int] = torchaudio.load(file)  # type: ignore
@@ -411,4 +428,4 @@ class SignalTrainDataModule(pl.LightningDataModule):
                         switch_value, peak_reduction_value
                     ], dtype=torch.float32)
                 ))
-        return SequenceDataset(entries)
+        return SequenceDataset(entries, self._data_augmentation)

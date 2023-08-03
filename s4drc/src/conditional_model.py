@@ -1,9 +1,8 @@
-from typing import Any, Literal, Optional, TypedDict
+from typing import Literal, TypedDict
 
 import pytorch_lightning as pl
 import torch.nn as nn
 from einops import rearrange
-from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import Tensor
 from torch.optim import AdamW
 
@@ -92,9 +91,9 @@ class S4ConditionalModel(pl.LightningModule):
             raise ValueError(
                 f'The model depth is expected to be zero or greater, but got {param["depth"]}.')
         
-        self.save_hyperparameters()
-
         super().__init__()
+
+        self.save_hyperparameters(param)
 
         self.control_parameter_mlp = nn.Sequential(
             nn.Linear(2, 16),
@@ -168,12 +167,24 @@ class S4ConditionalModel(pl.LightningModule):
         return loss
     
     def validation_step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int):
-        ...
+        x, y, cond = batch
+
+        y_hat = self(x, cond)
+        for criterion_name, criterion in self.validation_criterions.items():
+            loss = criterion(y_hat.unsqueeze(1), y.unsqueeze(1))
+            self.log(f'Validation Loss: {criterion_name}', loss)
 
     def test_step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int):
-        ...
+        x, y, cond = batch
+
+        y_hat = self(x, cond)
+        for criterion_name, criterion in self.validation_criterions.items():
+            if '+' in criterion_name:
+                continue
+            loss = criterion(y_hat.unsqueeze(1), y.unsqueeze(1))
+            self.log(f'Validation Loss: {criterion_name}', loss)
     
-    def configure_optimizers(self) -> Any:
+    def configure_optimizers(self):
         s4_layers: list[nn.Parameter] = []
         other_layers: list[nn.Parameter] = []
         for name, parameter in self.named_parameters():

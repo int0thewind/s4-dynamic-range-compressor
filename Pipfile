@@ -17,6 +17,7 @@ pandas = "*"
 matplotlib = "*"
 pyloudnorm = "*"
 jsonargparse = {version = "*", extras = ["signatures"]}
+wandb = "*"
 
 [dev-packages]
 autopep8 = "*"

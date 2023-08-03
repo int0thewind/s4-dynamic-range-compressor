@@ -358,7 +358,7 @@ class SignalTrainDatasetModule(pl.LightningDataModule):
             entries,
             self.hparams['batch_size'],
             num_workers=8,
-            shuffle=True,
+            shuffle=False,
             pin_memory=True,
             collate_fn=self._collate_fn
         )

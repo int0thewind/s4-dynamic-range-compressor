@@ -207,14 +207,12 @@ class S4Model(pl.LightningModule):
         s4_layers: list[nn.Parameter] = []
         other_layers: list[nn.Parameter] = []
         for name, parameter in self.named_parameters():
-            (s4_layers if 'DSSM' in name else other_layers).append(parameter)
-        
-        print(s4_layers)
+            (s4_layers if 's4' in name else other_layers).append(parameter)
 
         return AdamW(
             [
-                {'param': s4_layers, 'weight_decay': 0.0},
-                {'param': other_layers}
+                {'params': s4_layers, 'weight_decay': 0.0},
+                {'params': other_layers}
             ],
             lr=self.hparams['learning_rate']
         )

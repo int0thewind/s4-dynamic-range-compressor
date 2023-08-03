@@ -10,6 +10,7 @@ def main():
         S4Model,
         SignalTrainDatasetModule,
         seed_everything_default=42,
+        save_config_callback=None,  # TODO: what does this mean?
     )
 
 

@@ -1,5 +1,3 @@
-import os
-from abc import ABC
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Generic, Literal, TypedDict, TypeVar
@@ -9,14 +7,10 @@ import pytorch_lightning as pl
 import torch
 import torchaudio
 from einops import rearrange
-from pytorch_lightning.utilities.types import (EVAL_DATALOADERS,
-                                               TRAIN_DATALOADERS)
 from torch import Tensor
 from torch.hub import download_url_to_file
 from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
-
-__all__ = ['SwitchValue', 'PeakReductionValue', 'SignalTrainDataModule']
 
 SwitchValue = Literal[0, 1]
 PeakReductionValue = Literal[
@@ -311,10 +305,11 @@ class SignalTrainDataModule(pl.LightningDataModule):
         param: SignalTrainDatasetModuleParams
     ) -> None:
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(param)
 
     def prepare_data(self) -> None:
         link = 'https://cmu.box.com/shared/static/wuj5dtqjpm1lrvmju5xpgvcoxae6lxjr.zip'
+        # link = 'https://zenodo.org/record/3824876/files/SignalTrain_LA2A_Dataset_1.1.tgz'
         root = self.hparams['root']
 
         if (root / 'Train').exists():
@@ -323,10 +318,12 @@ class SignalTrainDataModule(pl.LightningDataModule):
 
         root.mkdir(511, True, True)
 
+        d = root / 'temp.zip'
         #     d = root / 'temp.tgz'
-        #     download_url_to_file(
-        #         'https://zenodo.org/record/3824876/files/SignalTrain_LA2A_Dataset_1.1.tgz', d
-        #     )
+        download_url_to_file(link, d)
+        with ZipFile(d, 'r') as zf:
+            zf.extractall(root)
+        d.unlink()
         #     with tarfile.open(d, 'r') as tf:
         #         tf.extractall()
         #     d.unlink()
@@ -334,24 +331,39 @@ class SignalTrainDataModule(pl.LightningDataModule):
         #     shutil.move(root / 'SignalTrain_LA2A_Dataset_1.1' / 'Test', root)
         #     shutil.move(root / 'SignalTrain_LA2A_Dataset_1.1' / 'Val', root)
         #     (root / 'SignalTrain_LA2A_Dataset_1.1').unlink()
-
-        d = root / 'temp.zip'
-        download_url_to_file(link, d)
-        with ZipFile(d, 'r') as zf:
-            zf.extractall(root)
-        d.unlink()
     
-    def train_dataloader(self) -> TRAIN_DATALOADERS:
+    def train_dataloader(self):
         entries = self._read_data(self.hparams['root'] / 'Train')
-        return DataLoader(entries, self.hparams['batch_size'], shuffle=True, pin_memory=True, collate_fn=self._collate_fn)
+        return DataLoader(
+            entries,
+            self.hparams['batch_size'],
+            num_workers=8,
+            shuffle=True,
+            pin_memory=True,
+            collate_fn=self._collate_fn
+        )
     
-    def val_dataloader(self) -> EVAL_DATALOADERS:
+    def val_dataloader(self):
         entries = self._read_data(self.hparams['root'] / 'Val')
-        return DataLoader(entries, self.hparams['batch_size'], shuffle=True, pin_memory=True, collate_fn=self._collate_fn)
+        return DataLoader(
+            entries,
+            self.hparams['batch_size'],
+            num_workers=8,
+            shuffle=True,
+            pin_memory=True,
+            collate_fn=self._collate_fn
+        )
     
-    def test_dataloader(self) -> EVAL_DATALOADERS:
+    def test_dataloader(self):
         entries = self._read_data(self.hparams['root'] / 'Test')
-        return DataLoader(entries, self.hparams['batch_size'], shuffle=False, pin_memory=True, collate_fn=self._collate_fn)
+        return DataLoader(
+            entries,
+            self.hparams['batch_size'],
+            num_workers=8,
+            shuffle=False,
+            pin_memory=True,
+            collate_fn=self._collate_fn
+        )
     
     @staticmethod
     def _collate_fn(batch: list[tuple[Tensor, Tensor, Tensor]]):

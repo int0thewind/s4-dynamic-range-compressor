@@ -2,11 +2,6 @@ from pprint import pprint
 
 import torch
 import wandb
-from torch import Tensor
-from torch.optim import AdamW
-from torch.utils.data import DataLoader
-from tqdm import tqdm
-
 from src.augmentation import invert_phase
 from src.dataset import SignalTrainDataset
 from src.loss import forge_loss_criterion_by, forge_validation_criterions_by
@@ -14,6 +9,10 @@ from src.main_routine import do_preparatory_work, print_and_save_model_info
 from src.model import S4ConditionalModel
 from src.parameter import ConditionalTaskParameter
 from src.utils import clear_memory
+from torch import Tensor
+from torch.optim import AdamW
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 if __name__ != '__main__':
     raise ImportError(f'The main script cannot be imported by other module.')
@@ -23,30 +22,6 @@ param = ConditionalTaskParameter.parse_args()
 job_dir, device = do_preparatory_work(
     param, param.dataset_dir, param.checkpoint_dir,
     param.random_seed, param.save_checkpoint
-)
-
-if param.log_wandb:
-    wandb.init(
-        name=job_dir.name,
-        project=param.wandb_project_name,
-        entity=param.wandb_entity,
-        config=param.to_dict(),
-    )
-
-'''Prepare the dataset.'''
-training_dataset = SignalTrainDataset(
-    param.dataset_dir, 'train', param.data_segment_length)
-training_dataloader = DataLoader(
-    training_dataset, param.batch_size,
-    shuffle=True, pin_memory=True,
-    collate_fn=training_dataset.collate_fn,
-)
-validation_dataset = SignalTrainDataset(
-    param.dataset_dir, 'validation', param.data_segment_length * 3)
-validation_dataloader = DataLoader(
-    validation_dataset, param.batch_size,
-    shuffle=True, pin_memory=True,
-    collate_fn=validation_dataset.collate_fn,
 )
 
 '''Prepare the model.'''

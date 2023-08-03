@@ -1,16 +1,13 @@
 from functools import reduce
 from typing import Literal, get_args
 
-import torch
 import torch.nn as nn
-from auraloss.freq import MultiResolutionSTFTLoss, STFTLoss
+from auraloss.freq import MultiResolutionSTFTLoss
 from auraloss.perceptual import FIRFilter
 from auraloss.time import DCLoss, ESRLoss
 from torch import Tensor
 
-__all__ = ['forge_loss_criterion_by', 'forge_validation_criterions_by']
-
-LossType = Literal['MAE', 'MSE', 'ESR', 'DC', 'Multi-STFT', 'STFT',
+LossType = Literal['MAE', 'MSE', 'ESR', 'DC', 'Multi-STFT',
                    'ESR+DC', 'ESR+DC+Multi-STFT', 'MAE+Multi-STFT', 'MAE+ESR+DC+Multi-STFT']
 
 
@@ -44,8 +41,6 @@ class PreEmphasisESRLoss(nn.Module):
 
 
 def forge_loss_criterion_by(loss_type: LossType, filter_coef: float) -> nn.Module:
-    if not loss_type in get_args(LossType):
-        raise ValueError(f'Unsupported loss type `{loss_type}`.')
     if loss_type == 'MAE':
         return nn.L1Loss()
     if loss_type == 'MSE':
@@ -56,23 +51,26 @@ def forge_loss_criterion_by(loss_type: LossType, filter_coef: float) -> nn.Modul
         return DCLoss()
     if loss_type == 'Multi-STFT':
         return MultiResolutionSTFTLoss()
-    if loss_type == 'STFT':
-        return STFTLoss()
+
     if loss_type == 'ESR+DC':
         return Sum(PreEmphasisESRLoss(filter_coef), DCLoss())
-    if loss_type == 'MAE+ESR+DC+Multi-STFT':
-        return Sum(PreEmphasisESRLoss(filter_coef), DCLoss(), MultiResolutionSTFTLoss(), nn.L1Loss())
+
     if loss_type == 'MAE+Multi-STFT':
         return Sum(MultiResolutionSTFTLoss(), nn.L1Loss())
-    return Sum(PreEmphasisESRLoss(filter_coef), DCLoss(), MultiResolutionSTFTLoss())
+    if loss_type == 'ESR+DC+Multi-STFT':
+        return Sum(PreEmphasisESRLoss(filter_coef), DCLoss(), MultiResolutionSTFTLoss())
+    if loss_type == 'MAE+ESR+DC+Multi-STFT':
+        return Sum(PreEmphasisESRLoss(filter_coef), DCLoss(), MultiResolutionSTFTLoss(), nn.L1Loss())
+
+    raise ValueError(f'Unsupported loss type `{loss_type}`.')
 
 
 def forge_validation_criterions_by(
-    filter_coef: float, device: torch.device, *loss_to_keep: LossType,
-) -> dict[LossType, nn.Module]:
-    return {
+    filter_coef: float, *loss_to_keep: LossType,
+) -> nn.ModuleDict:
+    return nn.ModuleDict({
         loss_type: forge_loss_criterion_by(
-            loss_type, filter_coef).eval().to(device)
+            loss_type, filter_coef).eval()
         for loss_type in get_args(LossType)
         if '+' not in loss_type or loss_type in loss_to_keep
-    }
+    })

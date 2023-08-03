@@ -1,4 +1,6 @@
-import torch
+from typing import Literal, get_args
+
+import pytorch_lightning as pl
 import torch.nn as nn
 from einops import rearrange
 from torch import Tensor
@@ -13,8 +15,7 @@ class Block(nn.Module):
         conditional_information_dimension: int,
         inner_audio_channel: int,
         s4_hidden_size: int,
-        s4_learning_rate: float | None,
-        film_take_batchnorm: bool,
+        take_batchnorm: bool,
         take_residual_connection: bool,
         activation: Activation
     ):
@@ -24,11 +25,10 @@ class Block(nn.Module):
 
         self.linear = nn.Linear(inner_audio_channel, inner_audio_channel)
         self.activation1 = Act()
-        self.s4 = DSSM(inner_audio_channel,
-                       s4_hidden_size, lr=s4_learning_rate)
+        self.s4 = DSSM(inner_audio_channel,s4_hidden_size)
+        self.batchnorm = nn.BatchNorm1d(inner_audio_channel, affine=False) if take_batchnorm else None
         self.film = FiLM(inner_audio_channel,
-                         conditional_information_dimension,
-                         film_take_batchnorm)
+                         conditional_information_dimension)
         self.activation2 = Act()
         self.residual_connection = nn.Conv1d(
             inner_audio_channel,
@@ -45,29 +45,30 @@ class Block(nn.Module):
 
         out = self.activation1(out)
         out = self.s4(out)
+        if self.batchnorm:
+            out = self.batchnorm(out)
         out = self.film(out, conditional_information)
         out = self.activation2(out)
 
         if self.residual_connection:
-            return out + self.residual_connection(x)
+            out += self.residual_connection(x)
+
         return out
 
 
-class S4ConditionalModel(nn.Module):
+class S4ConditionalModel(pl.LightningModule):
     def __init__(
         self,
         take_side_chain: bool,
         inner_audio_channel: int,
         s4_hidden_size: int,
-        s4_learning_rate: float | None,
         model_depth: int,
-        film_take_batchnorm: bool,  # New parameter in conditional model
+        take_batchnorm: bool,
         take_residual_connection: bool,
         convert_to_decibels: bool,
-        take_tanh: bool,
+        convert_to_amplitude: bool,
+        tanh: Literal['none', 'tanh', 'ptanh'],
         activation: Activation,
-        take_parametered_tanh: bool = False,
-        convert_to_amplitude: bool | None = None,
     ):
         if inner_audio_channel < 1:
             raise ValueError(
@@ -78,6 +79,8 @@ class S4ConditionalModel(nn.Module):
         if model_depth < 0:
             raise ValueError(
                 f'The model depth is expected to be zero or greater, but got {model_depth}.')
+        
+        self.save_hyperparameters()
 
         super().__init__()
 
@@ -91,61 +94,52 @@ class S4ConditionalModel(nn.Module):
         )
 
         self.decibel = Decibel() if convert_to_decibels else None
+
         self.expand = nn.Linear(1, inner_audio_channel)
         self.blocks = nn.ModuleList([Block(
             32,
             inner_audio_channel,
             s4_hidden_size,
-            s4_learning_rate,
-            film_take_batchnorm,
+            take_batchnorm,
             take_residual_connection,
             activation,
         ) for _ in range(model_depth)])
         self.contract = nn.Linear(inner_audio_channel, 1)
 
-        if convert_to_amplitude is None:
-            self.amplitude = Amplitude() if convert_to_decibels else None
-        else:
-            self.amplitude = Amplitude() if convert_to_amplitude else None
+        self.amplitude = Amplitude() if convert_to_amplitude else None
 
-        if take_tanh:
-            if take_parametered_tanh:
-                self.tanh = PTanh()
-            else:
-                self.tanh = nn.Tanh()    
+        if tanh == 'ptanh':
+            self.tanh = PTanh()
+        elif tanh == 'tanh':
+            self.tanh = nn.Tanh()    
         else:
             self.tanh = None
 
         self.take_side_chain = take_side_chain
 
-    def _pass_blocks(self, x: Tensor, conditional_information: Tensor) -> Tensor:
-        x = rearrange(x, 'B L -> B L 1')
-        if self.decibel:
-            x = self.decibel(x)
-
-        x = self.expand(x)
-
-        x = rearrange(x, 'B L H -> B H L')
-        for block in self.blocks:
-            x = block(x, conditional_information)
-        x = rearrange(x, 'B H L -> B L H')
-
-        x = self.contract(x)
-
-        if self.amplitude:
-            x = self.amplitude(x)
-        x = rearrange(x, 'B H 1 -> B H')
-
-        if self.tanh:
-            x = self.tanh(x)
-
-        return x
-
     def forward(self, x: Tensor, parameters: Tensor) -> Tensor:
         conditional_information = self.control_parameter_mlp(parameters)
-        out = self._pass_blocks(x, conditional_information)
+        out = rearrange(x, 'B L -> B L 1')
+        if self.decibel:
+            out = self.decibel(out)
+
+        out = self.expand(out)
+
+        out = rearrange(out, 'B L H -> B H L')
+        for block in self.blocks:
+            out = block(out, conditional_information)
+        out = rearrange(out, 'B H L -> B L H')
+
+        out = self.contract(out)
+
+        if self.amplitude:
+            out = self.amplitude(out)
+        out = rearrange(out, 'B H 1 -> B H')
+
+        if self.tanh:
+            out = self.tanh(out)
 
         if self.take_side_chain:
-            return x * out
-        else:
-            return out
+            out *= x
+
+        return out

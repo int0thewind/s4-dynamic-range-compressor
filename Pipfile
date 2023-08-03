@@ -25,6 +25,7 @@ torchinfo = "*"
 matplotlib = "*"
 soundfile = "*"
 plotly = "*"
+pytorch-lightning = "*"
 
 [dev-packages]
 autopep8 = "*"

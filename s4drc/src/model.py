@@ -11,8 +11,10 @@ from .loss import (LossType, forge_loss_criterion_by,
 from .module import DSSM, Amplitude, Decibel, FiLM
 from .module.activation import Activation, PTanh, get_activation_type_from
 
+TanhType = Literal['none', 'tanh', 'ptanh']
 
-class Block(nn.Module):
+
+class S4Block(nn.Module):
     def __init__(
         self,
         conditional_information_dimension: int,
@@ -59,7 +61,7 @@ class Block(nn.Module):
         return out
     
 
-class S4ConditionalModelParam(TypedDict):
+class S4ModelParam(TypedDict):
     learning_rate: float
 
     loss: LossType
@@ -73,27 +75,44 @@ class S4ConditionalModelParam(TypedDict):
     take_residual_connection: bool
     convert_to_decibels: bool
     convert_to_amplitude: bool
-    tanh: Literal['none', 'tanh', 'ptanh']
+    tanh: TanhType
     activation: Activation
 
 
-class S4ConditionalModel(pl.LightningModule):
-    hparams: S4ConditionalModelParam
+class S4Model(pl.LightningModule):
+    hparams: S4ModelParam
 
-    def __init__(self, param: S4ConditionalModelParam):
-        if param['inner_audio_channel'] < 1:
+    def __init__(
+        self, 
+        learning_rate: float,  # saved in self.hparams
+
+        loss: LossType,
+        loss_filter_coef: float,
+
+        inner_audio_channel: int,
+        s4_hidden_size: int,
+        depth: int,
+        take_side_chain: bool,  # saved in self.hparams
+        take_batchnorm: bool,
+        take_residual_connection: bool,
+        convert_to_decibels: bool,
+        convert_to_amplitude: bool,
+        tanh: TanhType,
+        activation: Activation,
+    ):
+        if inner_audio_channel < 1:
             raise ValueError(
-                f'The inner audio channel is expected to be one or greater, but got {param["inner_audio_channel"]}.')
-        if param['s4_hidden_size'] < 1:
+                f'The inner audio channel is expected to be one or greater, but got {inner_audio_channel}.')
+        if s4_hidden_size < 1:
             raise ValueError(
-                f'The S4 hidden size is expected to be one or greater, but got {param["s4_hidden_size"]}.')
-        if param['depth'] < 0:
+                f'The S4 hidden size is expected to be one or greater, but got {s4_hidden_size}.')
+        if depth < 0:
             raise ValueError(
-                f'The model depth is expected to be zero or greater, but got {param["depth"]}.')
+                f'The model depth is expected to be zero or greater, but got {depth}.')
         
         super().__init__()
 
-        self.save_hyperparameters(param)
+        self.save_hyperparameters()
 
         self.control_parameter_mlp = nn.Sequential(
             nn.Linear(2, 16),
@@ -104,30 +123,30 @@ class S4ConditionalModel(pl.LightningModule):
             nn.ReLU()
         )
 
-        self.decibel = Decibel() if param['convert_to_decibels'] else None
+        self.decibel = Decibel() if convert_to_decibels else None
 
-        self.expand = nn.Linear(1, param['inner_audio_channel'])
-        self.blocks = nn.ModuleList([Block(
+        self.expand = nn.Linear(1, inner_audio_channel)
+        self.blocks = nn.ModuleList([S4Block(
             32,
-            param['inner_audio_channel'],
-            param['s4_hidden_size'],
-            param['take_batchnorm'],
-            param['take_residual_connection'],
-            param['activation'],
-        ) for _ in range(param['depth'])])
-        self.contract = nn.Linear(param['inner_audio_channel'], 1)
+            inner_audio_channel,
+            s4_hidden_size,
+            take_batchnorm,
+            take_residual_connection,
+            activation,
+        ) for _ in range(depth)])
+        self.contract = nn.Linear(inner_audio_channel, 1)
 
-        self.amplitude = Amplitude() if param['convert_to_amplitude'] else None
+        self.amplitude = Amplitude() if convert_to_amplitude else None
 
-        if param['tanh'] == 'ptanh':
+        if tanh == 'ptanh':
             self.tanh = PTanh()
-        elif param['tanh'] == 'tanh':
+        elif tanh == 'tanh':
             self.tanh = nn.Tanh()    
         else:
             self.tanh = None
 
-        self.training_criterion = forge_loss_criterion_by(self.hparams['loss'], self.hparams['loss_filter_coef'])
-        self.validation_criterions = forge_validation_criterions_by(self.hparams['loss_filter_coef'], self.hparams['loss'])
+        self.training_criterion = forge_loss_criterion_by(loss, loss_filter_coef)
+        self.validation_criterions = forge_validation_criterions_by(loss_filter_coef, loss)
 
     def forward(self, x: Tensor, parameters: Tensor) -> Tensor:
         conditional_information = self.control_parameter_mlp(parameters)
@@ -188,8 +207,10 @@ class S4ConditionalModel(pl.LightningModule):
         s4_layers: list[nn.Parameter] = []
         other_layers: list[nn.Parameter] = []
         for name, parameter in self.named_parameters():
-            (s4_layers if name == 's4' else other_layers).append(parameter)
-        assert len(s4_layers) == len(self.blocks)
+            (s4_layers if 'DSSM' in name else other_layers).append(parameter)
+        
+        print(s4_layers)
+
         return AdamW(
             [
                 {'param': s4_layers, 'weight_decay': 0.0},

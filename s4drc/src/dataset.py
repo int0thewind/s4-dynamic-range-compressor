@@ -297,7 +297,7 @@ class SequenceDataset(Dataset, Generic[T]):
     
 
 class SignalTrainDatasetModuleParams(TypedDict):
-    root: Path
+    root: str
     batch_size: int
     segment_length: float
     
@@ -309,15 +309,17 @@ class SignalTrainDatasetModule(pl.LightningDataModule):
 
     def __init__(
         self,
-        param: SignalTrainDatasetModuleParams
+        root: str,
+        batch_size: int,
+        segment_length: float,
     ) -> None:
         super().__init__()
-        self.save_hyperparameters(param)
+        self.save_hyperparameters()
 
     def prepare_data(self) -> None:
         link = 'https://cmu.box.com/shared/static/wuj5dtqjpm1lrvmju5xpgvcoxae6lxjr.zip'
         # link = 'https://zenodo.org/record/3824876/files/SignalTrain_LA2A_Dataset_1.1.tgz'
-        root = self.hparams['root']
+        root = Path(self.hparams['root'])
 
         if (root / 'Train').exists():
             print('The SignalTrain dataset has been downloaded. Skipping ... ')
@@ -340,7 +342,7 @@ class SignalTrainDatasetModule(pl.LightningDataModule):
         #     (root / 'SignalTrain_LA2A_Dataset_1.1').unlink()
     
     def train_dataloader(self):
-        entries = self._read_data(self.hparams['root'] / 'Train')
+        entries = self._read_data(Path(self.hparams['root']) / 'Train')
         return DataLoader(
             entries,
             self.hparams['batch_size'],
@@ -351,7 +353,7 @@ class SignalTrainDatasetModule(pl.LightningDataModule):
         )
     
     def val_dataloader(self):
-        entries = self._read_data(self.hparams['root'] / 'Val')
+        entries = self._read_data(Path(self.hparams['root']) / 'Val')
         return DataLoader(
             entries,
             self.hparams['batch_size'],
@@ -362,7 +364,7 @@ class SignalTrainDatasetModule(pl.LightningDataModule):
         )
     
     def test_dataloader(self):
-        entries = self._read_data(self.hparams['root'] / 'Test')
+        entries = self._read_data(Path(self.hparams['root']) / 'Test')
         return DataLoader(
             entries,
             self.hparams['batch_size'],

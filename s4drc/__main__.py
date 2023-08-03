@@ -6,7 +6,11 @@ from .src.model import S4Model
 
 
 def main():
-    cli = LightningCLI(S4Model, SignalTrainDatasetModule)
+    LightningCLI(
+        S4Model,
+        SignalTrainDatasetModule,
+        seed_everything_default=42,
+    )
 
 
 if __name__ == '__main__':

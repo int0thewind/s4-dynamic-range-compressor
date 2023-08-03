@@ -309,9 +309,9 @@ class SignalTrainDatasetModule(pl.LightningDataModule):
 
     def __init__(
         self,
-        root: str,
-        batch_size: int,
-        segment_length: float,
+        root: str = './data/SignalTrain',
+        batch_size: int = 32,
+        segment_length: float = 1.5,
     ) -> None:
         super().__init__()
         self.save_hyperparameters()

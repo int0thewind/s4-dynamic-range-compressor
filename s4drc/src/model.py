@@ -84,21 +84,21 @@ class S4Model(pl.LightningModule):
 
     def __init__(
         self, 
-        learning_rate: float,  # saved in self.hparams
+        learning_rate: float = 1e-3,  # saved in self.hparams
 
-        loss: LossType,
-        loss_filter_coef: float,
+        loss: LossType = 'MAE+Multi-STFT',
+        loss_filter_coef: float = 0.85,
 
-        inner_audio_channel: int,
-        s4_hidden_size: int,
-        depth: int,
-        take_side_chain: bool,  # saved in self.hparams
-        take_batchnorm: bool,
-        take_residual_connection: bool,
-        convert_to_decibels: bool,
-        convert_to_amplitude: bool,
-        tanh: TanhType,
-        activation: Activation,
+        inner_audio_channel: int = 32,
+        s4_hidden_size: int = 4,
+        depth: int = 4,
+        take_side_chain: bool = False,  # saved in self.hparams
+        tanh: TanhType = 'tanh',
+        activation: Activation = 'PReLU',
+        take_batchnorm: bool = True,
+        take_residual_connection: bool = True,
+        convert_to_decibels: bool = False,
+        convert_to_amplitude: bool = False,
     ):
         if inner_audio_channel < 1:
             raise ValueError(

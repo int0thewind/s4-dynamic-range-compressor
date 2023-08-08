@@ -18,6 +18,7 @@ matplotlib = "*"
 pyloudnorm = "*"
 jsonargparse = {version = "*", extras = ["signatures"]}
 wandb = "*"
+lightning = "*"
 
 [dev-packages]
 autopep8 = "*"

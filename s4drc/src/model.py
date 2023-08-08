@@ -1,6 +1,6 @@
 from typing import Literal, TypedDict
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch.nn as nn
 from einops import rearrange
 from torch import Tensor
@@ -76,7 +76,7 @@ class S4ModelParam(TypedDict):
     take_residual_connection: bool
     convert_to_decibels: bool
     convert_to_amplitude: bool
-    tanh: TanhType
+    final_tanh: TanhType
     activation: Activation
 
 
@@ -95,7 +95,7 @@ class S4Model(pl.LightningModule):
         depth: int = 4,
         take_side_chain: bool = False,  # saved in self.hparams
         side_chain_tanh: bool = False,  # saved in self.hparams
-        tanh: TanhType = 'tanh',
+        final_tanh: TanhType = 'tanh',
         activation: Activation = 'PReLU',
         take_batchnorm: bool = True,
         take_residual_connection: bool = True,
@@ -140,9 +140,9 @@ class S4Model(pl.LightningModule):
 
         self.amplitude = Amplitude() if convert_to_amplitude else None
 
-        if tanh == 'ptanh':
+        if final_tanh == 'ptanh':
             self.tanh = PTanh()
-        elif tanh == 'tanh':
+        elif final_tanh == 'tanh':
             self.tanh = nn.Tanh()    
         else:
             self.tanh = None
@@ -195,6 +195,8 @@ class S4Model(pl.LightningModule):
         y_hat = self(x, cond)
         for criterion_name, criterion in self.validation_criterions.items():
             loss = criterion(y_hat.unsqueeze(1), y.unsqueeze(1))
+            if criterion_name == self.hparams['loss']:
+                self.log(f'Validation Loss', loss)
             self.log(f'Validation Loss: {criterion_name}', loss)
 
     def test_step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int):

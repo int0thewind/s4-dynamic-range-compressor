@@ -29,16 +29,16 @@ class DSSM(nn.Module):
         N = state_dim
         self.N = N
 
-        log_dt = torch.rand(H) * (
+        log_dt = nn.Parameter(torch.rand(H) * (
             math.log(dt_max) - math.log(dt_min)
-        ) + math.log(dt_min)
+        ) + math.log(dt_min))
         self.log_dt = log_dt
 
         C = torch.randn(H, N, dtype=torch.cfloat)
         self.C = nn.Parameter(c2r(C))
 
-        log_A_real = torch.log(0.5 * torch.ones(H, N))
-        A_imag = math.pi * repeat(torch.arange(N), 'n -> h n', h=H)
+        log_A_real = nn.Parameter(torch.log(0.5 * torch.ones(H, N)))
+        A_imag = nn.Parameter(math.pi * repeat(torch.arange(N), 'n -> h n', h=H))
         self.log_A_real = log_A_real
         self.A_imag = A_imag
 

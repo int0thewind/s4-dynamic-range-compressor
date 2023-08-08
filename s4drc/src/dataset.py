@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Callable, Generic, Literal, TypedDict, TypeVar
 from zipfile import ZipFile
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 import torchaudio
 from einops import rearrange
@@ -299,7 +299,9 @@ class SequenceDataset(Dataset, Generic[T]):
 class SignalTrainDatasetModuleParams(TypedDict):
     root: str
     batch_size: int
-    segment_length: float
+    training_segment_length: int
+    validation_segment_length: int
+    testing_segment_length: int
     
 
 class SignalTrainDatasetModule(pl.LightningDataModule):
@@ -311,7 +313,9 @@ class SignalTrainDatasetModule(pl.LightningDataModule):
         self,
         root: str = './data/SignalTrain',
         batch_size: int = 32,
-        segment_length: float = 1.5,
+        training_segment_length: int = 65536,
+        validation_segment_length: int = 65536 * 3,
+        testing_segment_length: int = 65536,
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
@@ -342,7 +346,10 @@ class SignalTrainDatasetModule(pl.LightningDataModule):
         #     (root / 'SignalTrain_LA2A_Dataset_1.1').unlink()
     
     def train_dataloader(self):
-        entries = self._read_data(Path(self.hparams['root']) / 'Train')
+        entries = self._read_data(
+            Path(self.hparams['root']) / 'Val',
+            self.hparams['training_segment_length'],
+        )
         return DataLoader(
             entries,
             self.hparams['batch_size'],
@@ -353,7 +360,10 @@ class SignalTrainDatasetModule(pl.LightningDataModule):
         )
     
     def val_dataloader(self):
-        entries = self._read_data(Path(self.hparams['root']) / 'Val')
+        entries = self._read_data(
+            Path(self.hparams['root']) / 'Val',
+            self.hparams['validation_segment_length'],
+        )
         return DataLoader(
             entries,
             self.hparams['batch_size'],
@@ -364,7 +374,10 @@ class SignalTrainDatasetModule(pl.LightningDataModule):
         )
     
     def test_dataloader(self):
-        entries = self._read_data(Path(self.hparams['root']) / 'Test')
+        entries = self._read_data(
+            Path(self.hparams['root']) / 'Test',
+            self.hparams['testing_segment_length'],
+        )
         return DataLoader(
             entries,
             self.hparams['batch_size'],
@@ -393,7 +406,7 @@ class SignalTrainDatasetModule(pl.LightningDataModule):
 
 
     @classmethod
-    def _slice_audio(cls, file: Path, segment_length: float) -> list[Tensor]:
+    def _slice_audio(cls, file: Path, segment_length: int) -> list[Tensor]:
         load_result: tuple[Tensor, int] = torchaudio.load(file)  # type: ignore
         dat, sr = load_result
         assert sr == cls.sample_rate
@@ -401,14 +414,14 @@ class SignalTrainDatasetModule(pl.LightningDataModule):
         if dat.dim() != 1:
             raise ValueError(f'{file} is not a mono audio.')
 
-        size, trill = divmod(dat.size(0), int(segment_length * sr))
+        size, trill = divmod(dat.size(0), segment_length)
         if trill != 0:
             dat = dat[:-trill]
         dat = rearrange(dat, '(S L) -> S L', S=size)
 
         return [dat[i] for i in range(dat.size(0))]
     
-    def _read_data(self, data_path: Path):
+    def _read_data(self, data_path: Path, segment_length: int):
         entries: list[tuple[Tensor, Tensor, Tensor]] = []
         all_files = sorted(data_path.glob('*.wav'))
         for file in tqdm(all_files, desc=f'Loading dataset from {data_path}.'):
@@ -419,8 +432,8 @@ class SignalTrainDatasetModule(pl.LightningDataModule):
                 int, file.stem.split('__')[1:])
             input_file = file.with_name(f'input_{file_id}_.wav')
 
-            input_datas = self._slice_audio(input_file, self.hparams['segment_length'])
-            output_datas = self._slice_audio(file, self.hparams['segment_length'])
+            input_datas = self._slice_audio(input_file, segment_length)
+            output_datas = self._slice_audio(file, segment_length)
             for input_data, output_data in zip(input_datas, output_datas):
                 assert input_data.size() == output_data.size()
                 entries.append((

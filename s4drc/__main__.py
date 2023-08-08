@@ -10,6 +10,7 @@ def main():
     LightningCLI(
         S4Model,
         SignalTrainDatasetModule,
+        save_config_callback=None,  # Do not save config as we always provide configs externally
     )
 
 

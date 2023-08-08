@@ -347,7 +347,7 @@ class SignalTrainDatasetModule(pl.LightningDataModule):
     
     def train_dataloader(self):
         entries = self._read_data(
-            Path(self.hparams['root']) / 'Val',
+            Path(self.hparams['root']) / 'Train',
             self.hparams['training_segment_length'],
         )
         return DataLoader(

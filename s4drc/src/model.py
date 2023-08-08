@@ -71,6 +71,7 @@ class S4ModelParam(TypedDict):
     s4_hidden_size: int
     depth: int
     take_side_chain: bool
+    side_chain_tanh: bool
     take_batchnorm: bool
     take_residual_connection: bool
     convert_to_decibels: bool
@@ -93,6 +94,7 @@ class S4Model(pl.LightningModule):
         s4_hidden_size: int = 4,
         depth: int = 4,
         take_side_chain: bool = False,  # saved in self.hparams
+        side_chain_tanh: bool = False,  # saved in self.hparams
         tanh: TanhType = 'tanh',
         activation: Activation = 'PReLU',
         take_batchnorm: bool = True,
@@ -167,11 +169,13 @@ class S4Model(pl.LightningModule):
             out = self.amplitude(out)
         out = rearrange(out, 'B H 1 -> B H')
 
+        if self.hparams['take_side_chain']:
+            if self.hparams['side_chain_tanh']:
+                out = out.tanh()
+            out *= x
+
         if self.tanh:
             out = self.tanh(out)
-
-        if self.hparams['take_side_chain']:
-            out *= x
 
         return out
     
@@ -201,7 +205,7 @@ class S4Model(pl.LightningModule):
             if '+' in criterion_name:
                 continue
             loss = criterion(y_hat.unsqueeze(1), y.unsqueeze(1))
-            self.log(f'Validation Loss: {criterion_name}', loss)
+            self.log(f'Testing Loss: {criterion_name}', loss)
     
     def configure_optimizers(self):
         s4_layers: list[nn.Parameter] = []

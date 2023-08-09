@@ -227,7 +227,7 @@ class S4Model(pl.LightningModule):
         return {
             'optimizer': optimizer,
             'lr_scheduler': {
-                'scheduler': ReduceLROnPlateau(optimizer, factor=0.1 ** 0.5, patience=10, mode='min', verbose=True),
+                'scheduler': ReduceLROnPlateau(optimizer, factor=0.1, patience=10, mode='min', verbose=True),
                 'monitor': 'Validation Loss'
             }
         }

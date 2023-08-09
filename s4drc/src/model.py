@@ -5,6 +5,7 @@ import torch.nn as nn
 from einops import rearrange
 from torch import Tensor
 from torch.optim import AdamW
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from .loss import (LossType, forge_loss_criterion_by,
                    forge_validation_criterions_by)
@@ -214,11 +215,19 @@ class S4Model(pl.LightningModule):
         other_layers: list[nn.Parameter] = []
         for name, parameter in self.named_parameters():
             (s4_layers if 's4' in name else other_layers).append(parameter)
-
-        return AdamW(
+        
+        optimizer = AdamW(
             [
                 {'params': s4_layers, 'weight_decay': 0.0},
                 {'params': other_layers}
             ],
             lr=self.hparams['learning_rate']
         )
+
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': {
+                'scheduler': ReduceLROnPlateau(optimizer, factor=0.1 ** 0.5, patience=10, mode='min', verbose=True),
+                'monitor': 'Validation Loss'
+            }
+        }

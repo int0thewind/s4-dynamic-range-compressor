@@ -6,8 +6,11 @@ name = "pypi"
 [packages]
 torch = "*"
 torchaudio = "*"
-pytorch-lightning = "*"
+lightning = "*"
+jsonargparse = {version = "*", extras = ["signatures"]}
+wandb = "*"
 auraloss = "*"
+pyloudnorm = "*"
 opt-einsum = "*"
 einops = "*"
 notebook = "*"
@@ -15,10 +18,6 @@ numpy = "*"
 scipy = "*"
 pandas = "*"
 matplotlib = "*"
-pyloudnorm = "*"
-jsonargparse = {version = "*", extras = ["signatures"]}
-wandb = "*"
-lightning = "*"
 
 [dev-packages]
 autopep8 = "*"

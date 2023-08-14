@@ -1,6 +1,7 @@
 test.ipynb
 data/
 experiment-result/
+pl-experiment-result/
 *.ckpt
 wandb/
 

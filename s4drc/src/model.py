@@ -196,9 +196,13 @@ class S4Model(pl.LightningModule):
         y_hat = self(x, cond)
         for criterion_name, criterion in self.validation_criterions.items():
             loss = criterion(y_hat.unsqueeze(1), y.unsqueeze(1))
+            self.log(f'Validation Loss: {criterion_name}', loss)
+
+            # Log an extra "Validation Loss" that is the same to the training loss.
+            # This is for PyTorch Lightning validation loss monitoring
+            # for saving checkpoints and scheduling learning rate.
             if criterion_name == self.hparams['loss']:
                 self.log(f'Validation Loss', loss)
-            self.log(f'Validation Loss: {criterion_name}', loss)
 
     def test_step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int):
         x, y, cond = batch

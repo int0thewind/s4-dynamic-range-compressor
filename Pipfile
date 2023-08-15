@@ -4,9 +4,9 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-torch = "*"
+torch = "2.0"
 torchaudio = "*"
-lightning = "*"
+lightning = "2.0.6"
 jsonargparse = {version = "*", extras = ["signatures"]}
 wandb = "*"
 auraloss = "*"
@@ -14,10 +14,11 @@ pyloudnorm = "*"
 opt-einsum = "*"
 einops = "*"
 notebook = "*"
-numpy = "*"
+numpy = "<=1.24"
 scipy = "*"
 pandas = "*"
 matplotlib = "*"
+resampy = "*"
 
 [dev-packages]
 autopep8 = "*"

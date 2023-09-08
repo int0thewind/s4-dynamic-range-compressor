@@ -20,8 +20,7 @@ class DSSM(nn.Module):
     N: int
 
     def __init__(
-        self, input_dim: int, state_dim: int, dt_min: float = 0.001,
-        dt_max: float = 0.1, lr: float | None = 1e-3,
+        self, input_dim: int, state_dim: int, dt_min: float = 0.001, dt_max: float = 0.1
     ):
         super().__init__()
 
@@ -30,18 +29,18 @@ class DSSM(nn.Module):
         N = state_dim
         self.N = N
 
-        log_dt = torch.rand(H) * (
+        log_dt = nn.Parameter(torch.rand(H) * (
             math.log(dt_max) - math.log(dt_min)
-        ) + math.log(dt_min)
-        self.register('log_dt', log_dt, lr)
+        ) + math.log(dt_min))
+        self.log_dt = log_dt
 
         C = torch.randn(H, N, dtype=torch.cfloat)
         self.C = nn.Parameter(c2r(C))
 
-        log_A_real = torch.log(0.5 * torch.ones(H, N))
-        A_imag = math.pi * repeat(torch.arange(N), 'n -> h n', h=H)
-        self.register('log_A_real', log_A_real, lr)
-        self.register('A_imag', A_imag, lr)
+        log_A_real = nn.Parameter(torch.log(0.5 * torch.ones(H, N)))
+        A_imag = nn.Parameter(math.pi * repeat(torch.arange(N), 'n -> h n', h=H))
+        self.log_A_real = log_A_real
+        self.A_imag = A_imag
 
         self.D = nn.Parameter(torch.randn(H))
 
@@ -59,16 +58,19 @@ class DSSM(nn.Module):
         K = 2 * torch.einsum('hn, hnl -> hl', C, torch.exp(P)).real
         return K
 
-    def register(self, name: str, tensor: Tensor, lr: float | None = None):
-        if lr == 0.0:
-            self.register_buffer(name, tensor)
-        else:
-            self.register_parameter(name, nn.Parameter(tensor))
+    # TODO: refactor the in-model optimizer configuration out to pytorch lightning models
+    # 1. Custom learning rate
+    # 2. Never use weight decay
+    # def register(self, name: str, tensor: Tensor, lr: float | None = None):
+    #     if lr == 0.0:
+    #         self.register_buffer(name, tensor)
+    #     else:
+    #         self.register_parameter(name, nn.Parameter(tensor))
 
-            optim = {'weight_decay': 0.0}  # Never use weight decay
-            if lr is not None:  # Use custom learning rate when a learning rate is given
-                optim['lr'] = lr
-            setattr(getattr(self, name), '_optim', optim)
+    #         optim = {'weight_decay': 0.0}  # Never use weight decay
+    #         if lr is not None:  # Use custom learning rate when a learning rate is given
+    #             optim['lr'] = lr
+    #         setattr(getattr(self, name), '_optim', optim)
 
     def forward(self, u: Tensor, length: Tensor | None = None):
         # Input and output shape (B H L)

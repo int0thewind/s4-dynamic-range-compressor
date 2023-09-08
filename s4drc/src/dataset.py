@@ -1,19 +1,16 @@
-import os
-from abc import ABC
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal, get_args
+from typing import Callable, Generic, Literal, TypedDict, TypeVar
 from zipfile import ZipFile
 
+import lightning.pytorch as pl
 import torch
 import torchaudio
 from einops import rearrange
 from torch import Tensor
 from torch.hub import download_url_to_file
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
-
-__all__ = ['SwitchValue', 'PeakReductionValue',
-           'download_signal_train_dataset_to', 'FixDataset', 'SignalTrainDataset']
 
 SwitchValue = Literal[0, 1]
 PeakReductionValue = Literal[
@@ -278,159 +275,156 @@ param_dict: dict[
                ('Train',
                 'input_263_.wav',
                 'target_263_LA2A_2c__1__100.wav')]}
+    
+
+T = TypeVar('T')
 
 
-def download_signal_train_dataset_to(root: os.PathLike):
-    #     if not isinstance(root, Path):
-    #         root = Path(root)
+class SequenceDataset(Dataset, Generic[T]):
+    def __init__(self, entries: Sequence[T], transform: Callable[[T], T] | None = None) -> None:
+        super().__init__()
+        self.entries = entries
+        self.transform = transform
 
-    #     if (root / 'Train').exists():
-    #         print('The SignalTrain dataset has been downloaded. Skipping ... ')
-    #         return
+    def __getitem__(self, index: int):
+        ret = self.entries[index]
+        if self.transform:
+            ret = self.transform(ret)
+        return ret
+    
+    def __len__(self):
+        return len(self.entries)
+    
 
-    #     root.mkdir(511, True, True)
+class SignalTrainDatasetModuleParams(TypedDict):
+    root: str
+    batch_size: int
+    training_segment_length: int
+    validation_segment_length: int
+    testing_segment_length: int
+    
 
-    #     d = root / 'temp.tgz'
-    #     download_url_to_file(
-    #         'https://zenodo.org/record/3824876/files/SignalTrain_LA2A_Dataset_1.1.tgz', d
-    #     )
-    #     with tarfile.open(d, 'r') as tf:
-    #         tf.extractall()
-    #     d.unlink()
+class SignalTrainDatasetModule(pl.LightningDataModule):
+    sample_rate = 44_100
 
-    #     shutil.move(root / 'SignalTrain_LA2A_Dataset_1.1' / 'Train', root)
-    #     shutil.move(root / 'SignalTrain_LA2A_Dataset_1.1' / 'Test', root)
-    #     shutil.move(root / 'SignalTrain_LA2A_Dataset_1.1' / 'Val', root)
-    #     (root / 'SignalTrain_LA2A_Dataset_1.1').unlink()
+    hparams: SignalTrainDatasetModuleParams
 
-    link = 'https://cmu.box.com/shared/static/wuj5dtqjpm1lrvmju5xpgvcoxae6lxjr.zip'
+    def __init__(
+        self,
+        root: str = './data/SignalTrain',
+        batch_size: int = 32,
+        training_segment_length: int = 65536,
+        validation_segment_length: int = 65536 * 3,
+        testing_segment_length: int = 65536,
+    ) -> None:
+        super().__init__()
+        self.save_hyperparameters()
 
-    if not isinstance(root, Path):
-        root = Path(root)
+    def prepare_data(self) -> None:
+        link = 'https://cmu.box.com/shared/static/wuj5dtqjpm1lrvmju5xpgvcoxae6lxjr.zip'
+        # link = 'https://zenodo.org/record/3824876/files/SignalTrain_LA2A_Dataset_1.1.tgz'
+        root = Path(self.hparams['root'])
 
-    if (root / 'Train').exists():
-        print('The SignalTrain dataset has been downloaded. Skipping ... ')
-        return
+        if (root / 'Train').exists():
+            print('The SignalTrain dataset has been downloaded. Skipping ... ')
+            return
 
-    root.mkdir(511, True, True)
+        root.mkdir(511, True, True)
 
-    d = root / 'temp.zip'
-    download_url_to_file(link, d)
-    with ZipFile(d, 'r') as zf:
-        zf.extractall(root)
-    d.unlink()
-
-
-class AbstractSignalTrainDataset(ABC, Dataset):
-    sample_rate = 44100
-
+        d = root / 'temp.zip'
+        #     d = root / 'temp.tgz'
+        download_url_to_file(link, d)
+        with ZipFile(d, 'r') as zf:
+            zf.extractall(root)
+        d.unlink()
+        #     with tarfile.open(d, 'r') as tf:
+        #         tf.extractall()
+        #     d.unlink()
+        #     shutil.move(root / 'SignalTrain_LA2A_Dataset_1.1' / 'Train', root)
+        #     shutil.move(root / 'SignalTrain_LA2A_Dataset_1.1' / 'Test', root)
+        #     shutil.move(root / 'SignalTrain_LA2A_Dataset_1.1' / 'Val', root)
+        #     (root / 'SignalTrain_LA2A_Dataset_1.1').unlink()
+    
+    def train_dataloader(self):
+        entries = self._read_data(
+            Path(self.hparams['root']) / 'Train',
+            self.hparams['training_segment_length'],
+        )
+        return DataLoader(
+            entries,
+            self.hparams['batch_size'],
+            num_workers=8,
+            shuffle=True,
+            pin_memory=True,
+            collate_fn=self._collate_fn
+        )
+    
+    def val_dataloader(self):
+        entries = self._read_data(
+            Path(self.hparams['root']) / 'Val',
+            self.hparams['validation_segment_length'],
+        )
+        return DataLoader(
+            entries,
+            self.hparams['batch_size'],
+            num_workers=8,
+            shuffle=False,
+            pin_memory=True,
+            collate_fn=self._collate_fn
+        )
+    
+    def test_dataloader(self):
+        entries = self._read_data(
+            Path(self.hparams['root']) / 'Test',
+            self.hparams['testing_segment_length'],
+        )
+        return DataLoader(
+            entries,
+            self.hparams['batch_size'],
+            num_workers=8,
+            shuffle=False,
+            pin_memory=True,
+            collate_fn=self._collate_fn
+        )
+    
     @staticmethod
-    def collate_fn(batch: list[tuple[Tensor, Tensor, Tensor]]):
+    def _collate_fn(batch: list[tuple[Tensor, Tensor, Tensor]]):
         return (
             torch.stack([b[0] for b in batch]),
             torch.stack([b[1] for b in batch]),
             torch.stack([b[2] for b in batch]),
         )
-
+    
+    
     @staticmethod
-    def slice_audio(file: Path, segment_length: float) -> list[Tensor]:
+    def _data_augmentation(entry: tuple[Tensor, Tensor, Tensor]):
+        x, y, cond = entry
+        if torch.rand([1]).item() < 0.5:
+            x *= -1
+            y *= -1
+        return x, y, cond
+
+
+    @classmethod
+    def _slice_audio(cls, file: Path, segment_length: int) -> list[Tensor]:
         load_result: tuple[Tensor, int] = torchaudio.load(file)  # type: ignore
         dat, sr = load_result
-        assert sr == AbstractSignalTrainDataset.sample_rate
+        assert sr == cls.sample_rate
         dat.squeeze_(0)
         if dat.dim() != 1:
             raise ValueError(f'{file} is not a mono audio.')
 
-        size, trill = divmod(dat.size(0), int(segment_length * sr))
+        size, trill = divmod(dat.size(0), segment_length)
         if trill != 0:
             dat = dat[:-trill]
         dat = rearrange(dat, '(S L) -> S L', S=size)
 
         return [dat[i] for i in range(dat.size(0))]
-
-
-class FixDataset(AbstractSignalTrainDataset):
-    input_file_179 = Path('Train') / 'input_179_.wav'  # 20 min
-    input_file_263 = Path('Train') / 'input_263_.wav'  # 15 min
-    input_file_221 = Path('Train') / 'input_221_.wav'  # 04 min
-    output_file_179 = Path('Train') / 'target_179_LA2A_3c__1__100.wav'
-    output_file_263 = Path('Train') / 'target_263_LA2A_2c__1__100.wav'
-    output_file_221 = Path('Train') / 'target_221_LA2A_3c__1__100.wav'
-
-    input_data: list[Tensor]
-    output_data: list[Tensor]
-
-    def __init__(
-        self,
-        dataset_root: os.PathLike,
-        partition: Literal['train', 'validation'],
-        segment_length: float
-    ):
-        if segment_length is not None and segment_length <= 0.0:
-            raise ValueError('The segment length must be a positive number.')
-
-        if not isinstance(dataset_root, Path):
-            dataset_root = Path(dataset_root)
-
-        super().__init__()
-
-        if partition == 'train':
-            self.input_data = self.slice_audio(
-                dataset_root / self.input_file_179, segment_length)
-            self.input_data.extend(self.slice_audio(
-                dataset_root / self.input_file_263, segment_length))
-            self.output_data = self.slice_audio(
-                dataset_root / self.output_file_179, segment_length)
-            self.output_data.extend(self.slice_audio(
-                dataset_root / self.output_file_263, segment_length))
-        else:
-            self.input_data = self.slice_audio(
-                dataset_root / self.input_file_221, segment_length)
-            self.output_data = self.slice_audio(
-                dataset_root / self.output_file_221, segment_length)
-
-        assert len(self.input_data) == len(self.output_data)
-
-    def __len__(self):
-        return len(self.input_data)
-
-    def __getitem__(self, i: int):
-        assert self.input_data[i].size() == self.output_data[i].size()
-        return (
-            self.input_data[i],
-            self.output_data[i],
-            torch.tensor([1, 100]),
-        )
-
-
-class SignalTrainDataset(AbstractSignalTrainDataset):
-    entries: list[tuple[Tensor, Tensor, Tensor]]
-
-    def __init__(
-        self,
-        dataset_root: os.PathLike,
-        partition: Literal['train', 'test', 'validation'],
-        segment_length: float
-    ):
-        if segment_length is not None and segment_length <= 0.0:
-            raise ValueError('The segment length must be a positive number.')
-
-        if not isinstance(dataset_root, Path):
-            dataset_root = Path(dataset_root)
-
-        super().__init__()
-
-        if partition == 'train':
-            data_path = dataset_root / 'Train'
-        elif partition == 'test':
-            data_path = dataset_root / 'Test'
-        else:
-            data_path = dataset_root / 'Val'
-
-        self.entries = []
-
+    
+    def _read_data(self, data_path: Path, segment_length: int):
+        entries: list[tuple[Tensor, Tensor, Tensor]] = []
         all_files = sorted(data_path.glob('*.wav'))
-        for file in tqdm(all_files, desc=f'Loading {partition} dataset.'):
+        for file in tqdm(all_files, desc=f'Loading dataset from {data_path}.'):
             if file.name.startswith('input'):
                 continue
             file_id = file.name[7:10]
@@ -438,20 +432,15 @@ class SignalTrainDataset(AbstractSignalTrainDataset):
                 int, file.stem.split('__')[1:])
             input_file = file.with_name(f'input_{file_id}_.wav')
 
-            input_datas = self.slice_audio(input_file, segment_length)
-            output_datas = self.slice_audio(file, segment_length)
+            input_datas = self._slice_audio(input_file, segment_length)
+            output_datas = self._slice_audio(file, segment_length)
             for input_data, output_data in zip(input_datas, output_datas):
                 assert input_data.size() == output_data.size()
-                self.entries.append((
+                entries.append((
                     input_data,
                     output_data,
                     torch.tensor([
                         switch_value, peak_reduction_value
                     ], dtype=torch.float32)
                 ))
-
-    def __len__(self):
-        return len(self.entries)
-
-    def __getitem__(self, i: int):
-        return self.entries[i]
+        return SequenceDataset(entries, self._data_augmentation)

@@ -1,5 +1,5 @@
-from lightning.pytorch.cli import LightningCLI
 import torch
+from lightning.pytorch.cli import LightningCLI
 
 from .src.dataset import SignalTrainDatasetModule
 from .src.model import S4Model

@@ -8,10 +8,10 @@ from torch import Tensor
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
+from .activation import Activation, PTanh, get_activation_type_from
 from .loss import (LossType, forge_loss_criterion_by,
                    forge_validation_criterions_by)
 from .module import Amplitude, Decibel, FiLM
-from .module.activation import Activation, PTanh, get_activation_type_from
 from .module.s4 import FFTConv as S4
 
 TanhType = Literal['none', 'tanh', 'ptanh']
@@ -23,9 +23,6 @@ class S4Block(nn.Module):
         conditional_information_dimension: int,
         inner_audio_channel: int,
         s4_hidden_size: int,
-        take_batchnorm: bool,
-        take_residual_connection: bool,
-        activation: Activation
     ):
         super().__init__()
 

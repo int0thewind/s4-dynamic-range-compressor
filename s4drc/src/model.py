@@ -1,4 +1,4 @@
-from typing import Literal, TypedDict
+from typing import TypedDict
 
 import lightning.pytorch as pl
 import torch.nn as nn
@@ -7,8 +7,7 @@ from torch import Tensor
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from .loss import (LossType, forge_loss_criterion_by,
-                   forge_validation_criterions_by)
+from .loss import forge_loss_criterion_by, forge_validation_criterions_by
 from .module.film import FiLM
 from .module.s4 import FFTConv as S4
 
@@ -24,7 +23,7 @@ class S4Block(nn.Module):
 
         self.linear = nn.Linear(inner_audio_channel, inner_audio_channel)
         self.activation1 = nn.PReLU()
-        self.s4 = S4(inner_audio_channel, activation='id', mode='diag', d_state=s4_hidden_size)
+        self.s4 = S4(inner_audio_channel, activation='id', mode='s4d', d_state=s4_hidden_size)
         self.batchnorm = nn.BatchNorm1d(inner_audio_channel, affine=False)
         self.film = FiLM(inner_audio_channel,
                          conditional_information_dimension)
@@ -112,16 +111,30 @@ class S4Model(pl.LightningModule):
         self.training_criterion = forge_loss_criterion_by('MAE+Multi-STFT', self.hparams['loss_filter_coef'])
         self.validation_criterions = forge_validation_criterions_by(loss_filter_coef)
 
-    def forward(self, x: Tensor, parameters: Tensor) -> Tensor:
+    def forward(
+        self,
+        x: Tensor,
+        parameters: Tensor,
+        states: list[Tensor] | list[None] | None = None
+    ) -> Tensor:
+        if states is None:
+            states = [None for _ in range(len(self.blocks))]
+
         conditional_information = self.control_parameter_mlp(parameters)
+
         out = rearrange(x, 'B L -> B L 1')
         out = self.expand(out)
         out = rearrange(out, 'B L H -> B H L')
-        for block in self.blocks:
-            out = block(out, conditional_information)
+
+        out_states = []
+        for i, block in enumerate(self.blocks):
+            out, out_state = block(out, conditional_information, states[i])
+            out_states.append(out_state)
+
         out = rearrange(out, 'B H L -> B L H')
         out = self.contract(out)
         out = rearrange(out, 'B H 1 -> B H')
+
         out = self.tanh(out)
 
         return out
